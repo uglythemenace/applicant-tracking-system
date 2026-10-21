@@ -1,15 +1,12 @@
-import os
 from fastapi import FastAPI
-from dotenv import load_dotenv
 from jobs import router as jobs_router
+from applications import router as applications_router
 
-load_dotenv()
+app = FastAPI(title="Applicant Tracking System API", version="0.1.0")
 
-app = FastAPI(title="Applicant Tracking System API")
-
-# Include the jobs router
 app.include_router(jobs_router)
+app.include_router(applications_router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the ATS API!"}
+    return {"message": "Welcome to the Applicant Tracking System API"}
