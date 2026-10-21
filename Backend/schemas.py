@@ -5,7 +5,7 @@ from typing import Optional
 class JobCreate(BaseModel):
     title: str
     description: str
-    department: str
+    department: Optional[str] = "General"
 
 class JobResponse(JobCreate):
     id: int
