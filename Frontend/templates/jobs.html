@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATS - Jobs Management</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center bg-white p-6 rounded-lg shadow-sm">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Job Postings</h1>
+                <p class="text-gray-500">Manage open positions in your organization</p>
+            </div>
+            <div class="space-x-2">
+                <a href="dashboard.html" class="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-md transition inline-block">
+                    View Applicants Dashboard
+                </a>
+                <button onclick="fetchJobs()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md transition">
+                    Refresh Jobs
+                </button>
+            </div>
+        </header>
+
+        <!-- New Job Form (POST /jobs/) -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Create New Job Posting</h2>
+            <form id="create-job-form" onsubmit="submitJob(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Job Title</label>
+                    <input type="text" id="job_title" required placeholder="e.g. Senior Software Engineer" class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="job_description" rows="3" required placeholder="Job responsibilities and qualifications..." class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-md transition">
+                    Post Job
+                </button>
+            </form>
+        </div>
+
+        <!-- Jobs List -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Active Job Postings</h2>
+            </div>
+            <div id="jobs-container" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamic job cards loaded via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        // 1. Fetch all jobs
+        async function fetchJobs() {
+            const container = document.getElementById('jobs-container');
+            container.innerHTML = '<p class="text-gray-500">Loading job postings...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/jobs/`);
+                if (!response.ok) throw new Error('Failed to fetch jobs');
+
+                const data = await response.json();
+                
+                // Directly extract the array from the backend's {"jobs": [...]} wrapper[cite: 6]
+                const jobsList = data.jobs || [];
+                
+                renderJobs(jobsList);
+            } catch (error) {
+                console.error('Error fetching jobs:', error);
+                container.innerHTML = '<p class="text-red-500">Error loading jobs. Is the backend running?</p>';
+            }
+        }
+
+        // 2. Render job cards
+        function renderJobs(jobs) {
+            const container = document.getElementById('jobs-container');
+            container.innerHTML = '';
+
+            if (!Array.isArray(jobs) || jobs.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No job postings found.</p>';
+                return;
+            }
+
+            jobs.forEach(job => {
+                const card = document.createElement('div');
+                card.className = 'border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-lg text-gray-900">${job.title || job.job_title || 'Untitled'}</h3>
+                        <span class="text-xs bg-blue-100 text-blue-800 font-mono font-semibold px-2 py-1 rounded">ID: #${job.id}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 whitespace-pre-line">${job.description || job.job_description || ''}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 3. Create job (POST)
+        async function submitJob(event) {
+            event.preventDefault();
+
+            const payload = {
+                title: document.getElementById('job_title').value,
+                description: document.getElementById('job_description').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/jobs/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    alert('Failed to create job posting.');
+                    return;
+                }
+
+                document.getElementById('create-job-form').reset();
+                fetchJobs();
+            } catch (error) {
+                console.error('Error creating job:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchJobs);
+    </script>
+</body>
+</html>
