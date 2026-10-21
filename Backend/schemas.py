@@ -29,3 +29,6 @@ class ApplicationResponse(ApplicationCreate):
 
     class Config:
         from_attributes = True
+
+class ApplicationUpdate(BaseModel):
+    status: str
