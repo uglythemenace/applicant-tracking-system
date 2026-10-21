@@ -11,6 +11,10 @@
     {
       "source": "/jobs",
       "destination": "/templates/jobs.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/$1"
     }
   ]
 }
