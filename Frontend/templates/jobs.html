@@ -3,149 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Job Management</title>
-    <!-- Tailwind CSS -->
+    <title>Learn2earn ATS - Open Positions</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen p-8 selection:bg-blue-600 selection:text-white">
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4 sm:p-8 selection:bg-blue-600 selection:text-white">
 
     <div class="max-w-6xl mx-auto space-y-8">
-        
-        <!-- Header with Logo and Navigation -->
+
         <header class="flex flex-col sm:flex-row justify-between items-center bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-800 shadow-xl gap-4">
             <div class="flex items-center space-x-3">
-                <!-- Modern Blue Logo Icon -->
                 <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-black text-white tracking-tight">Learn2earn ATS</h1>
-                    <p class="text-xs text-gray-400">Job Management Portal</p>
+                    <h1 class="text-2xl font-black text-white tracking-tight">Learn2earn Careers</h1>
+                    <p class="text-xs text-gray-400">Open positions</p>
                 </div>
             </div>
-            
-            <div class="flex items-center space-x-3">
-                <a href="index.html" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700 flex items-center space-x-1.5">
-                    <span>Home</span>
-                </a>
-                <a href="dashboard.html" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700 flex items-center space-x-1.5">
-                    <span>Applicants Dashboard</span>
-                </a>
-                <button onclick="fetchJobs()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">
-                    Refresh Jobs
-                </button>
+
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="/" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Home</a>
+                <a href="/post-job" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Post a Job</a>
+                <button onclick="fetchJobs()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Refresh Jobs</button>
             </div>
         </header>
 
-        <!-- New Job Form (POST /jobs/) -->
-        <div class="bg-gray-900/80 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-gray-800">
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center space-x-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
-                <span>Create New Job Posting</span>
-            </h2>
-            <form id="create-job-form" onsubmit="submitJob(event)" class="space-y-5">
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Job Title</label>
-                    <input type="text" id="job_title" required placeholder="e.g. Senior Software Engineer" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Description</label>
-                    <textarea id="job_description" rows="3" required placeholder="Job responsibilities and qualifications..." class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"></textarea>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-0.5">
-                    Post Job
-                </button>
-            </form>
-        </div>
-
-        <!-- Jobs List Section -->
         <div class="bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-800 overflow-hidden">
-            <div class="p-6 border-b border-gray-800 flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white">Active Job Postings</h2>
+            <div class="p-6 border-b border-gray-800">
+                <h2 class="text-xl font-bold text-white">Open Positions</h2>
+                <p class="text-sm text-gray-400 mt-1">Pick a role and apply. We'll review your application and get back to you.</p>
             </div>
-            <div id="jobs-container" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Dynamic job cards loaded via JS -->
-            </div>
+            <div id="jobs-container" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
     </div>
 
-    <!-- JavaScript -->
     <script>
         const API_BASE_URL = 'https://applicant-tracking-system-tbaw.onrender.com';
 
-        // 1. Fetch all jobs
+        // Stops job text from being treated as HTML code
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
         async function fetchJobs() {
             const container = document.getElementById('jobs-container');
-            container.innerHTML = '<p class="text-gray-400 text-sm py-4">Loading job postings...</p>';
+            container.innerHTML = '<p class="text-gray-400 text-sm py-4">Loading open positions...</p>';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/jobs/`);
+                const response = await fetch(`${API_BASE_URL}/jobs/?status=approved`);
                 if (!response.ok) throw new Error('Failed to fetch jobs');
-
                 const data = await response.json();
-                
-                // Extract array from backend's {"jobs": [...]} wrapper
-                const jobsList = Array.isArray(data) ? data : (data.jobs || []);
-                
-                renderJobs(jobsList);
+                renderJobs(Array.isArray(data) ? data : (data.jobs || []));
             } catch (error) {
                 console.error('Error fetching jobs:', error);
-                container.innerHTML = '<p class="text-red-400 text-sm py-4">Error loading jobs. Is the backend running on port 8000?</p>';
+                container.innerHTML = '<p class="text-red-400 text-sm py-4">Could not load jobs. The server may be waking up. Wait a moment and click Refresh Jobs.</p>';
             }
         }
 
-        // 2. Render job cards
         function renderJobs(jobs) {
             const container = document.getElementById('jobs-container');
             container.innerHTML = '';
 
-            if (!Array.isArray(jobs) || jobs.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm py-4">No job postings found.</p>';
+            if (jobs.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-sm py-4">No open positions right now. Please check back soon.</p>';
                 return;
             }
 
             jobs.forEach(job => {
                 const card = document.createElement('div');
-                card.className = 'border border-gray-800 rounded-xl p-5 bg-gray-950 hover:border-gray-700 transition group';
+                card.className = 'border border-gray-800 rounded-xl p-5 bg-gray-950 hover:border-gray-700 transition flex flex-col';
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-bold text-base text-white group-hover:text-blue-400 transition">${job.title || job.job_title || 'Untitled'}</h3>
-                        <span class="text-xs bg-blue-950 text-blue-400 border border-blue-900/50 font-mono font-semibold px-2.5 py-1 rounded-lg">ID: #${job.id}</span>
+                    <div class="flex justify-between items-start mb-3 gap-3">
+                        <h3 class="font-bold text-base text-white">${esc(job.title)}</h3>
+                        <span class="text-xs bg-blue-950 text-blue-400 border border-blue-900/50 font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap">${esc(job.department || 'General')}</span>
                     </div>
-                    <p class="text-sm text-gray-400 whitespace-pre-line leading-relaxed">${job.description || job.job_description || ''}</p>
+                    <p class="text-sm text-gray-400 whitespace-pre-line leading-relaxed flex-1">${esc(job.description)}</p>
+                    <a href="/?job=${encodeURIComponent(job.id)}" class="mt-5 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Apply Now</a>
                 `;
                 container.appendChild(card);
             });
-        }
-
-        // 3. Create job (POST)
-        async function submitJob(event) {
-            event.preventDefault();
-
-            const payload = {
-                title: document.getElementById('job_title').value,
-                description: document.getElementById('job_description').value
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/jobs/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    alert('Failed to create job posting.');
-                    return;
-                }
-
-                document.getElementById('create-job-form').reset();
-                fetchJobs();
-            } catch (error) {
-                console.error('Error creating job:', error);
-            }
         }
 
         document.addEventListener('DOMContentLoaded', fetchJobs);

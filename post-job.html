@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn2earn ATS - Post a Job</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4 sm:p-8 selection:bg-blue-600 selection:text-white">
+
+    <div class="max-w-2xl mx-auto space-y-8">
+
+        <header class="flex justify-between items-center bg-gray-900/80 p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Post a Job</h1>
+                <p class="text-xs text-gray-400">Submitted jobs are reviewed before they go public</p>
+            </div>
+            <a href="/jobs" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">View Jobs</a>
+        </header>
+
+        <div class="bg-gray-900/80 p-8 rounded-2xl shadow-xl border border-gray-800">
+            <form id="create-job-form" onsubmit="submitJob(event)" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Job Title</label>
+                    <input type="text" id="job_title" required placeholder="e.g. Senior Software Engineer" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Department</label>
+                    <input type="text" id="job_department" placeholder="e.g. Engineering (optional)" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Description</label>
+                    <textarea id="job_description" rows="5" required placeholder="Job responsibilities and qualifications..." class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"></textarea>
+                </div>
+                <button id="submit-btn" type="submit" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/20 transition">
+                    Submit for Review
+                </button>
+                <p id="msg" class="text-center text-sm font-medium"></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://applicant-tracking-system-tbaw.onrender.com';
+
+        async function submitJob(event) {
+            event.preventDefault();
+            const msg = document.getElementById('msg');
+            const btn = document.getElementById('submit-btn');
+
+            const payload = {
+                title: document.getElementById('job_title').value.trim(),
+                description: document.getElementById('job_description').value.trim(),
+                department: document.getElementById('job_department').value.trim() || 'General'
+            };
+
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+            msg.innerText = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/jobs/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Request failed');
+
+                document.getElementById('create-job-form').reset();
+                msg.className = 'text-center text-sm font-medium text-emerald-400';
+                msg.innerText = 'Job submitted! It will appear on the jobs page after an admin approves it.';
+            } catch (error) {
+                msg.className = 'text-center text-sm font-medium text-rose-400';
+                msg.innerText = 'Something went wrong. Please try again in a moment.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Submit for Review';
+            }
+        }
+    </script>
+</body>
+</html>
