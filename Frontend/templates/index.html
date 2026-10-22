@@ -3,47 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Careers</title>
+    <title>Learn2earn ATS - Application Form</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
     
-    <!-- Navigation Bar -->
+    <!-- Top Navigation Header -->
     <header class="bg-slate-900 border-b border-slate-800 p-6">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold">Learn2earn Careers</h1>
-                <p class="text-sm text-slate-400">Join our team and build the future</p>
+                <p class="text-sm text-slate-400">Job Application Portal</p>
             </div>
-            <div>
-                <a href="/admin" class="text-sm bg-slate-800 px-4 py-2 rounded-lg hover:bg-slate-700 text-slate-300">Recruiter Portal</a>
+            <!-- Clean 3-Page Navigation -->
+            <div class="space-x-4">
+                <a href="/" class="text-sm text-slate-300 hover:text-white font-medium">Home</a>
+                <a href="/jobs" class="text-sm text-slate-300 hover:text-white font-medium">View Jobs</a>
+                <a href="/apply" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">Apply Now</a>
             </div>
         </div>
     </header>
 
-    <!-- Main Content: Job Application Form -->
-    <main class="max-w-3xl mx-auto w-full p-6 my-auto space-y-6">
+    <!-- Main Content: Candidate Application Form -->
+    <main class="max-w-xl mx-auto w-full p-6 my-auto space-y-6">
         <div class="bg-slate-900 p-8 rounded-xl border border-slate-800 shadow-xl">
-            <h2 class="text-xl font-semibold mb-2">Submit Your Application</h2>
-            <p class="text-sm text-slate-400 mb-6">Fill in your details below to apply for an open position.</p>
+            <h2 class="text-xl font-semibold mb-1">Submit Your Details</h2>
+            <p class="text-sm text-slate-400 mb-6">Select the position you want to apply for and fill in your info.</p>
 
             <form id="apply-form" onsubmit="submitApplication(event)" class="space-y-4">
+                <!-- Full Name Field -->
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Full Name</label>
-                    <input type="text" id="candidate-name" required placeholder="e.g. Sarah Jenkins" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                    <input type="text" id="candidate-name" required placeholder="e.g. John Doe" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
 
+                <!-- Email Address Field -->
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
-                    <input type="email" id="candidate-email" required placeholder="e.g. sarah@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                    <input type="email" id="candidate-email" required placeholder="e.g. johndoe@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
 
+                <!-- Job Selection Field -->
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Job Reference ID</label>
-                    <input type="number" id="job-id" required value="1" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Position Applying For</label>
+                    <select id="job-id" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                        <option value="" disabled selected>-- Select a Job Position --</option>
+                        <option value="1">Frontend Developer (Job #1)</option>
+                        <option value="2">Backend Engineer (FastAPI) (Job #2)</option>
+                        <option value="3">Full-Stack Engineer (Job #3)</option>
+                        <option value="4">UI/UX Designer (Job #4)</option>
+                        <option value="5">Data Analyst (Job #5)</option>
+                    </select>
                 </div>
 
-                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg transition duration-200">
+                <!-- CV / Resume Link Field -->
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">CV / Resume Link (URL)</label>
+                    <input type="url" id="candidate-cv" placeholder="https://linkedin.com/in/yourprofile or Google Drive link" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg transition duration-200 mt-2">
                     Submit Application
                 </button>
             </form>
@@ -52,6 +73,7 @@
         </div>
     </main>
 
+    <!-- Script to Submit Data to Render Backend -->
     <script>
         const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
 
@@ -61,7 +83,7 @@
             const msg = document.getElementById('status-message');
 
             submitBtn.disabled = true;
-            submitBtn.innerText = "Submitting...";
+            submitBtn.innerText = "Submitting Application...";
             msg.classList.add('hidden');
 
             const payload = {
@@ -85,6 +107,7 @@
                     throw new Error("Submission failed");
                 }
             } catch (err) {
+                console.error("Submission error:", err);
                 msg.innerText = "Error submitting application. Please try again.";
                 msg.className = "mt-4 text-center text-sm font-medium text-rose-400 block";
             } finally {
