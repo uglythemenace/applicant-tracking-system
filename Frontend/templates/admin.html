@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn2earn ATS - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    
+    <!-- Admin Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-2xl font-bold">Learn2earn ATS</h1>
+                    <span class="bg-blue-900 text-blue-300 text-xs px-2 py-0.5 rounded font-mono">ADMIN</span>
+                </div>
+                <p class="text-sm text-slate-400">Recruitment & Applicant Review Management</p>
+            </div>
+            <div class="space-x-4">
+                <a href="/" class="bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700">Public Careers Site</a>
+                <button onclick="loadApplicants()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-500">Refresh Data</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+        
+        <!-- Metrics Section -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">TOTAL APPLICANTS</p>
+                <h3 id="total-count" class="text-3xl font-bold mt-2">0</h3>
+            </div>
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">PENDING REVIEW</p>
+                <h3 id="pending-count" class="text-3xl font-bold mt-2">0</h3>
+            </div>
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">ACCEPTED / HIRED</p>
+                <h3 id="accepted-count" class="text-3xl font-bold mt-2">0</h3>
+            </div>
+        </div>
+
+        <!-- Candidate Management Table -->
+        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+            <div class="p-6 border-b border-slate-800">
+                <h2 class="text-lg font-semibold">Candidate Application Reviews</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                            <th class="p-4">ID</th>
+                            <th class="p-4">Candidate Name</th>
+                            <th class="p-4">Email</th>
+                            <th class="p-4">Job ID</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4 text-right">Recruiter Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="applicant-table-body" class="divide-y divide-slate-800 text-sm">
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-slate-400">Loading records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Script to Manage Applications -->
+    <script>
+        const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
+
+        async function loadApplicants() {
+            try {
+                const response = await fetch(`${API_BASE}/applicants/`);
+                const applicants = await response.json();
+
+                const tbody = document.getElementById('applicant-table-body');
+                tbody.innerHTML = '';
+
+                let total = applicants.length;
+                let pending = 0;
+                let accepted = 0;
+
+                if (total === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No applicants submitted yet.</td></tr>`;
+                    return;
+                }
+
+                applicants.forEach(app => {
+                    if (app.status === 'pending') pending++;
+                    if (app.status === 'accepted') accepted++;
+
+                    let statusClass = 'bg-amber-950 text-amber-400 border-amber-800';
+                    if (app.status === 'accepted') statusClass = 'bg-emerald-950 text-emerald-400 border-emerald-800';
+                    if (app.status === 'rejected') statusClass = 'bg-rose-950 text-rose-400 border-rose-800';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-4 font-mono text-slate-400">#${app.id}</td>
+                        <td class="p-4 font-medium">${app.name}</td>
+                        <td class="p-4 text-slate-400">${app.email}</td>
+                        <td class="p-4 text-slate-400">Job #${app.job_id}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusClass}">${app.status}</span></td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick="updateStatus(${app.id}, 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Accept</button>
+                            <button onclick="updateStatus(${app.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Reject</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('total-count').innerText = total;
+                document.getElementById('pending-count').innerText = pending;
+                document.getElementById('accepted-count').innerText = accepted;
+
+            } catch (error) {
+                console.error("Error fetching applicants:", error);
+                document.getElementById('applicant-table-body').innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-400">Failed to connect to backend service.</td></tr>`;
+            }
+        }
+
+        async function updateStatus(id, newStatus) {
+            try {
+                const response = await fetch(`${API_BASE}/applicants/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.ok) {
+                    loadApplicants();
+                } else {
+                    alert('Status update failed.');
+                }
+            } catch (err) {
+                console.error("Error updating candidate status:", err);
+                alert('Network error while updating status.');
+            }
+        }
+
+        loadApplicants();
+    </script>
+</body>
+</html>
