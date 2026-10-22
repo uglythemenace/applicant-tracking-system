@@ -56,12 +56,11 @@
                             <th class="p-4">Email</th>
                             <th class="p-4">Job ID</th>
                             <th class="p-4">Status</th>
-                            <th class="p-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="applicant-table-body" class="divide-y divide-slate-800 text-sm">
                         <tr>
-                            <td colspan="6" class="p-6 text-center text-slate-400">Loading records...</td>
+                            <td colspan="5" class="p-6 text-center text-slate-400">Loading records...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -86,7 +85,7 @@
                 let accepted = 0;
 
                 if (total === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No applicants found.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No applicants found.</td></tr>`;
                     return;
                 }
 
@@ -103,10 +102,6 @@
                         <td class="p-4 text-slate-400">${app.email}</td>
                         <td class="p-4 text-slate-400">Job #${app.job_id}</td>
                         <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusColor}">${app.status}</span></td>
-                        <td class="p-4 text-right space-x-2">
-                            <button onclick="updateStatus(${app.id}, 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Accept</button>
-                            <button onclick="updateStatus(${app.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Reject</button>
-                        </td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -117,7 +112,7 @@
 
             } catch (error) {
                 console.error("Error loading applicants:", error);
-                document.getElementById('applicant-table-body').innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-400">Failed to load data from backend.</td></tr>`;
+                document.getElementById('applicant-table-body').innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-400">Failed to load data from backend.</td></tr>`;
             }
         }
 
