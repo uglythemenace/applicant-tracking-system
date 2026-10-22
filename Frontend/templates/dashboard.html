@@ -75,7 +75,7 @@
 
         async function loadApplicants() {
             try {
-                const response = await fetch(`${API_BASE}/applicants/`);
+                const response = await fetch(`${API_BASE}/applications/`);
                 const applicants = await response.json();
 
                 const tbody = document.getElementById('applicant-table-body');
@@ -123,7 +123,7 @@
 
         async function updateStatus(id, newStatus) {
             try {
-                const response = await fetch(`${API_BASE}/applicants/${id}/status`, {
+                const response = await fetch(`${API_BASE}/applications/${id}`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json'
