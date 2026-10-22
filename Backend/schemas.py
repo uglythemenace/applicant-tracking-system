@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 
 # --- Job Schemas ---
 class JobCreate(BaseModel):
@@ -10,9 +10,13 @@ class JobCreate(BaseModel):
 class JobResponse(JobCreate):
     id: int
     created_at: str
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class JobStatusUpdate(BaseModel):
+    status: Literal["approved", "rejected"]
 
 
 # --- Candidate Application Schemas ---
