@@ -3,264 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Applicants Dashboard</title>
-    <!-- Tailwind CSS -->
+    <title>Learn2earn ATS - Dashboard</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen p-8 selection:bg-blue-600 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    
+    <!-- Main Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">Learn2earn ATS</h1>
+                <p class="text-sm text-slate-400">Applicants & Recruitment Dashboard</p>
+            </div>
+            <div class="space-x-4">
+                <a href="/Frontend/templates/dashboard.html" class="bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700">Home</a>
+                <button onclick="loadApplicants()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-500">Refresh Applicants</button>
+            </div>
+        </div>
+    </header>
 
-    <div class="max-w-6xl mx-auto space-y-8">
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
         
-        <!-- Header with Logo and Navigation -->
-        <header class="flex flex-col sm:flex-row justify-between items-center bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-800 shadow-xl gap-4">
-            <div class="flex items-center space-x-3">
-                <!-- Modern Blue Logo Icon -->
-                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-black text-white tracking-tight">Learn2earn ATS</h1>
-                    <p class="text-xs text-gray-400">Applicants & Recruitment Dashboard</p>
-                </div>
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">TOTAL APPLICANTS</p>
+                <h3 id="total-count" class="text-3xl font-bold mt-2">0</h3>
             </div>
-            
-            <div class="flex items-center space-x-3">
-                <a href="index.html" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">
-                    Home
-                </a>
-                <a href="jobs.html" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">
-                    Manage Jobs
-                </a>
-                <button onclick="fetchApplicants()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">
-                    Refresh Applicants
-                </button>
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">PENDING REVIEW</p>
+                <h3 id="pending-count" class="text-3xl font-bold mt-2">0</h3>
             </div>
-        </header>
-
-        <!-- Quick Summary Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-gray-900/80 backdrop-blur-md p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Total Applicants</p>
-                    <h3 class="text-2xl font-black text-white mt-1" id="stat-total">0</h3>
-                </div>
-                <div class="bg-blue-950 text-blue-400 p-3 rounded-xl border border-blue-900/50">👥</div>
-            </div>
-            <div class="bg-gray-900/80 backdrop-blur-md p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Pending Review</p>
-                    <h3 class="text-2xl font-black text-white mt-1" id="stat-pending">0</h3>
-                </div>
-                <div class="bg-amber-950 text-amber-400 p-3 rounded-xl border border-amber-900/50">⏳</div>
-            </div>
-            <div class="bg-gray-900/80 backdrop-blur-md p-5 rounded-2xl border border-gray-800 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Hired / Accepted</p>
-                    <h3 class="text-2xl font-black text-white mt-1" id="stat-hired">0</h3>
-                </div>
-                <div class="bg-emerald-950 text-emerald-400 p-3 rounded-xl border border-emerald-900/50">✅</div>
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                <p class="text-sm text-slate-400">HIRED / ACCEPTED</p>
+                <h3 id="accepted-count" class="text-3xl font-bold mt-2">0</h3>
             </div>
         </div>
 
-        <!-- Applicants Table Section -->
-        <div class="bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-800 overflow-hidden">
-            
-            <!-- Table Header with Search Bar -->
-            <div class="p-6 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 class="text-xl font-bold text-white">Candidate Applications</h2>
-                    <p class="text-xs text-gray-400 mt-1" id="applicant-count-info">Loading records...</p>
-                </div>
-
-                <!-- Real-Time Search Box -->
-                <div class="w-full sm:w-72">
-                    <input 
-                        type="text" 
-                        id="search-input" 
-                        oninput="handleSearch()" 
-                        placeholder="Search by name, email, status..." 
-                        class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                    >
-                </div>
+        <!-- Candidate Table Section -->
+        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+            <div class="p-6 border-b border-slate-800">
+                <h2 class="text-lg font-semibold">Candidate Applications</h2>
             </div>
-
-            <!-- Table -->
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-gray-300">
-                    <thead class="bg-gray-950/80 text-xs uppercase font-bold text-gray-400 tracking-wider border-b border-gray-800">
-                        <tr>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
                             <th class="p-4">ID</th>
                             <th class="p-4">Candidate Name</th>
                             <th class="p-4">Email</th>
                             <th class="p-4">Job ID</th>
                             <th class="p-4">Status</th>
+                            <th class="p-4 text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="applicants-table-body" class="divide-y divide-gray-800/60">
-                        <!-- Dynamic candidate rows -->
+                    <tbody id="applicant-table-body" class="divide-y divide-slate-800 text-sm">
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-slate-400">Loading records...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
-
-            <!-- Pagination Controls Footer -->
-            <div class="p-4 bg-gray-950/80 border-t border-gray-800 flex justify-between items-center flex-wrap gap-4">
-                <span class="text-xs text-gray-400" id="pagination-status">Page 1 of 1</span>
-                
-                <div class="flex items-center space-x-2">
-                    <button id="prev-btn" onclick="changePage(-1)" class="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-200 text-xs font-semibold px-4 py-2 rounded-lg border border-gray-700 transition">
-                        &larr; Previous
-                    </button>
-                    <span id="page-indicator" class="text-xs font-bold text-blue-400 px-2">1</span>
-                    <button id="next-btn" onclick="changePage(1)" class="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-200 text-xs font-semibold px-4 py-2 rounded-lg border border-gray-700 transition">
-                        Next &rarr;
-                    </button>
-                </div>
-            </div>
         </div>
+    </main>
 
-    </div>
-
-    <!-- JavaScript -->
+    <!-- Script to Fetch and Update Data with Action Buttons -->
     <script>
-        const API_BASE_URL = 'https://applicant-tracking-system-tbaw.onrender.com';
-        const ITEMS_PER_PAGE = 10;
-        
-        let allApplicants = [];
-        let filteredApplicants = [];
-        let currentPage = 1;
+        const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
 
-        // 1. Fetch all applicants from backend
-        async function fetchApplicants() {
-            const tbody = document.getElementById('applicants-table-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">Loading candidates...</td></tr>';
-
+        async function loadApplicants() {
             try {
-                const response = await fetch(`${API_BASE_URL}/applications/`);
-                if (!response.ok) throw new Error('Failed to fetch applicants');
+                const response = await fetch(`${API_BASE}/applicants/`);
+                const applicants = await response.json();
 
-                const data = await response.json();
-                allApplicants = Array.isArray(data) ? data : (data.applications || data.applicants || []);
-                
-                // Reset search & stats
-                document.getElementById('search-input').value = '';
-                filteredApplicants = [...allApplicants];
-                updateStats();
+                const tbody = document.getElementById('applicant-table-body');
+                tbody.innerHTML = '';
 
-                currentPage = 1;
-                renderPage();
+                let total = applicants.length;
+                let pending = 0;
+                let accepted = 0;
+
+                if (total === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No applicants found.</td></tr>`;
+                    return;
+                }
+
+                applicants.forEach(app => {
+                    if (app.status === 'pending') pending++;
+                    if (app.status === 'accepted') accepted++;
+
+                    const statusColor = app.status === 'accepted' ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-amber-950 text-amber-400 border-amber-800';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-4 font-mono text-slate-400">#${app.id}</td>
+                        <td class="p-4 font-medium">${app.name}</td>
+                        <td class="p-4 text-slate-400">${app.email}</td>
+                        <td class="p-4 text-slate-400">Job #${app.job_id}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusColor}">${app.status}</span></td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick="updateStatus(${app.id}, 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Accept</button>
+                            <button onclick="updateStatus(${app.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Reject</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('total-count').innerText = total;
+                document.getElementById('pending-count').innerText = pending;
+                document.getElementById('accepted-count').innerText = accepted;
+
             } catch (error) {
-                console.error('Error fetching applicants:', error);
-                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-red-400">Error loading candidate data. Check backend connection.</td></tr>';
-                document.getElementById('applicant-count-info').textContent = 'Unable to load candidates';
+                console.error("Error loading applicants:", error);
+                document.getElementById('applicant-table-body').innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-400">Failed to load data from backend.</td></tr>`;
             }
         }
 
-        // 2. Real-time search filter function
-        function handleSearch() {
-            const query = document.getElementById('search-input').value.toLowerCase().trim();
-            
-            filteredApplicants = allApplicants.filter(applicant => {
-                const name = (applicant.name || applicant.candidate_name || '').toLowerCase();
-                const email = (applicant.email || '').toLowerCase();
-                const status = (applicant.status || '').toLowerCase();
-                const jobId = String(applicant.job_id || '').toLowerCase();
+        async function updateStatus(id, newStatus) {
+            try {
+                const response = await fetch(`${API_BASE}/applicants/${id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
 
-                return name.includes(query) || email.includes(query) || status.includes(query) || jobId.includes(query);
-            });
-
-            currentPage = 1;
-            renderPage();
-        }
-
-        // 3. Update top summary stats
-        function updateStats() {
-            document.getElementById('stat-total').textContent = allApplicants.length;
-
-            const pendingCount = allApplicants.filter(a => {
-                const s = (a.status || '').toLowerCase();
-                return s === '' || s.includes('pending') || s.includes('review');
-            }).length;
-
-            const hiredCount = allApplicants.filter(a => {
-                const s = (a.status || '').toLowerCase();
-                return s.includes('hire') || s.includes('accept');
-            }).length;
-
-            document.getElementById('stat-pending').textContent = pendingCount;
-            document.getElementById('stat-hired').textContent = hiredCount;
-        }
-
-        // 4. Render sliced candidates for current page
-        function renderPage() {
-            const tbody = document.getElementById('applicants-table-body');
-            tbody.innerHTML = '';
-
-            const total = filteredApplicants.length;
-            const totalPages = Math.ceil(total / ITEMS_PER_PAGE) || 1;
-
-            if (currentPage < 1) currentPage = 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const currentSlice = filteredApplicants.slice(startIndex, endIndex);
-
-            // Update status text
-            document.getElementById('applicant-count-info').textContent = `Showing ${total} matching candidate(s)`;
-            document.getElementById('pagination-status').textContent = `Showing ${total > 0 ? startIndex + 1 : 0} to ${Math.min(endIndex, total)} of ${total} entries`;
-            document.getElementById('page-indicator').textContent = `${currentPage} / ${totalPages}`;
-
-            // Handle Empty State
-            if (currentSlice.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">No matching candidates found.</td></tr>';
-                document.getElementById('prev-btn').disabled = true;
-                document.getElementById('next-btn').disabled = true;
-                return;
-            }
-
-            // Populate rows
-            currentSlice.forEach(applicant => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-800/40 transition';
-                
-                const statusBadge = getStatusBadge(applicant.status || 'Pending');
-
-                tr.innerHTML = `
-                    <td class="p-4 font-mono text-xs text-blue-400">#${applicant.id}</td>
-                    <td class="p-4 font-semibold text-white">${applicant.name || applicant.candidate_name || 'N/A'}</td>
-                    <td class="p-4 text-gray-400">${applicant.email || 'N/A'}</td>
-                    <td class="p-4 font-mono text-xs text-gray-400">Job #${applicant.job_id || 'N/A'}</td>
-                    <td class="p-4">${statusBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Toggle pagination buttons
-            document.getElementById('prev-btn').disabled = (currentPage === 1);
-            document.getElementById('next-btn').disabled = (currentPage === totalPages);
-        }
-
-        // 5. Handle Page Change
-        function changePage(direction) {
-            currentPage += direction;
-            renderPage();
-        }
-
-        // Helper for status badge styling
-        function getStatusBadge(status) {
-            const lower = status.toLowerCase();
-            if (lower.includes('accept') || lower.includes('hire')) {
-                return `<span class="bg-emerald-950 text-emerald-400 border border-emerald-900/50 text-xs px-2.5 py-1 rounded-full font-semibold">${status}</span>`;
-            } else if (lower.includes('reject')) {
-                return `<span class="bg-rose-950 text-rose-400 border border-rose-900/50 text-xs px-2.5 py-1 rounded-full font-semibold">${status}</span>`;
-            } else {
-                return `<span class="bg-blue-950 text-blue-400 border border-blue-900/50 text-xs px-2.5 py-1 rounded-full font-semibold">${status}</span>`;
+                if (response.ok) {
+                    loadApplicants(); // Refresh table automatically
+                } else {
+                    alert('Failed to update status.');
+                }
+            } catch (err) {
+                console.error("Error updating status:", err);
+                alert('Network error while updating status.');
             }
         }
 
-        document.addEventListener('DOMContentLoaded', fetchApplicants);
+        // Load data on page open
+        loadApplicants();
     </script>
 </body>
 </html>
