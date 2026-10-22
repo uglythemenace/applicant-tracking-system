@@ -1,16 +1,12 @@
 {
   "rewrites": [
-    {
-      "source": "/",
-      "destination": "/Frontend/templates/dashboard.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/Frontend/templates/dashboard.html"
-    },
-    {
-      "source": "/jobs",
-      "destination": "/Frontend/templates/jobs.html"
-    }
+    { "source": "/", "destination": "/Frontend/templates/index.html" },
+    { "source": "/index.html", "destination": "/Frontend/templates/index.html" },
+    { "source": "/dashboard", "destination": "/Frontend/templates/dashboard.html" },
+    { "source": "/dashboard.html", "destination": "/Frontend/templates/dashboard.html" },
+    { "source": "/admin", "destination": "/Frontend/templates/admin.html" },
+    { "source": "/admin.html", "destination": "/Frontend/templates/admin.html" },
+    { "source": "/jobs", "destination": "/Frontend/templates/jobs.html" },
+    { "source": "/jobs.html", "destination": "/Frontend/templates/jobs.html" }
   ]
 }
