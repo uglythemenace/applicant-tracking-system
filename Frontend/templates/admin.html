@@ -7,10 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
-    
+
     <!-- Admin Header -->
     <header class="bg-slate-900 border-b border-slate-800 p-6">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
             <div>
                 <div class="flex items-center space-x-2">
                     <h1 class="text-2xl font-bold">Learn2earn ATS</h1>
@@ -18,16 +18,20 @@
                 </div>
                 <p class="text-sm text-slate-400">Recruitment & Applicant Review Management</p>
             </div>
-            <div class="space-x-4">
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button onclick="goBack()" class="bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700 inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+                    Back
+                </button>
                 <a href="/" class="bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700">Public Careers Site</a>
-                <button onclick="loadApplicants()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-500">Refresh Data</button>
+                <button onclick="refreshAll()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-500">Refresh Data</button>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto p-6 space-y-6">
-        
+
         <!-- Metrics Section -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
@@ -41,6 +45,46 @@
             <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
                 <p class="text-sm text-slate-400">ACCEPTED / HIRED</p>
                 <h3 id="accepted-count" class="text-3xl font-bold mt-2">0</h3>
+            </div>
+        </div>
+
+        <!-- Job Openings Management -->
+        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+            <div class="p-6 border-b border-slate-800">
+                <h2 class="text-lg font-semibold">Manage Job Openings</h2>
+                <p class="text-sm text-slate-400 mt-1">Jobs you post here appear on the public jobs page right away. Close a job when it's filled.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-0 lg:divide-x divide-slate-800">
+
+                <!-- Post a new job -->
+                <div class="lg:col-span-2 p-6">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-4">Post a New Job</h3>
+                    <form id="job-form" onsubmit="postJob(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Job Title</label>
+                            <input type="text" id="job-title" required placeholder="e.g. Frontend Developer" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Department</label>
+                            <input type="text" id="job-department" placeholder="e.g. Engineering (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Description</label>
+                            <textarea id="job-description" required rows="4" placeholder="What does this role involve?" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500"></textarea>
+                        </div>
+                        <button type="submit" id="job-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium py-3 rounded-lg transition">Post Job</button>
+                        <div id="job-message" class="text-center text-sm font-medium hidden"></div>
+                    </form>
+                </div>
+
+                <!-- Existing jobs -->
+                <div class="lg:col-span-3 p-6 border-t border-slate-800 lg:border-t-0">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-4">Your Jobs</h3>
+                    <div id="jobs-list" class="space-y-3">
+                        <p class="text-sm text-slate-400">Loading jobs...</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -71,10 +115,136 @@
         </div>
     </main>
 
-    <!-- Script to Manage Applications -->
+    <!-- Script to Manage Jobs and Applications -->
     <script>
         const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
 
+        // Go to the previous page, or home if there is no history
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/';
+            }
+        }
+
+        // Stops text from being treated as HTML code
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
+        function refreshAll() {
+            loadJobs();
+            loadApplicants();
+        }
+
+        // ---------- Jobs ----------
+        async function loadJobs() {
+            const list = document.getElementById('jobs-list');
+            try {
+                const response = await fetch(`${API_BASE}/jobs/`);
+                if (!response.ok) throw new Error('Failed to load jobs');
+                const data = await response.json();
+                const jobs = Array.isArray(data) ? data : (data.jobs || []);
+
+                list.innerHTML = '';
+
+                if (jobs.length === 0) {
+                    list.innerHTML = '<p class="text-sm text-slate-400">No jobs yet. Post your first one using the form.</p>';
+                    return;
+                }
+
+                jobs.forEach(job => {
+                    const isOpen = job.status === 'approved';
+                    const badge = isOpen
+                        ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                        : 'bg-slate-800 text-slate-400 border-slate-700';
+                    const actionBtn = isOpen
+                        ? `<button onclick="setJobStatus(${job.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Close</button>`
+                        : `<button onclick="setJobStatus(${job.id}, 'approved')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Reopen</button>`;
+
+                    const item = document.createElement('div');
+                    item.className = 'flex items-start justify-between gap-4 bg-slate-950 border border-slate-800 rounded-lg p-4';
+                    item.innerHTML = `
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="font-semibold text-sm text-white">${esc(job.title)}</p>
+                                <span class="text-xs text-blue-400">${esc(job.department || 'General')}</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs border ${badge}">${isOpen ? 'Open' : 'Closed'}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1 line-clamp-2">${esc(job.description)}</p>
+                            <p class="text-xs text-slate-600 mt-1 font-mono">Job #${esc(job.id)}</p>
+                        </div>
+                        <div class="shrink-0">${actionBtn}</div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) {
+                console.error('Error loading jobs:', err);
+                list.innerHTML = '<p class="text-sm text-rose-400">Could not load jobs. The server may be waking up. Click Refresh Data in a moment.</p>';
+            }
+        }
+
+        async function postJob(e) {
+            e.preventDefault();
+            const btn = document.getElementById('job-submit-btn');
+            const msg = document.getElementById('job-message');
+
+            btn.disabled = true;
+            btn.innerText = 'Posting...';
+            msg.classList.add('hidden');
+
+            const payload = {
+                title: document.getElementById('job-title').value.trim(),
+                description: document.getElementById('job-description').value.trim(),
+                department: document.getElementById('job-department').value.trim() || 'General'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/jobs/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Failed to post job');
+
+                document.getElementById('job-form').reset();
+                msg.innerText = 'Job posted. It is now live on the public jobs page.';
+                msg.className = 'text-center text-sm font-medium text-emerald-400 block';
+                loadJobs();
+            } catch (err) {
+                console.error('Error posting job:', err);
+                msg.innerText = 'Could not post the job. Please try again in a moment.';
+                msg.className = 'text-center text-sm font-medium text-rose-400 block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Post Job';
+            }
+        }
+
+        async function setJobStatus(id, newStatus) {
+            try {
+                const response = await fetch(`${API_BASE}/jobs/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.ok) {
+                    loadJobs();
+                } else {
+                    alert('Could not update the job.');
+                }
+            } catch (err) {
+                console.error('Error updating job:', err);
+                alert('Network error while updating the job.');
+            }
+        }
+
+        // ---------- Applicants ----------
         async function loadApplicants() {
             try {
                 const response = await fetch(`${API_BASE}/applications/`);
@@ -103,10 +273,10 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td class="p-4 font-mono text-slate-400">#${app.id}</td>
-                        <td class="p-4 font-medium">${app.candidate_name}</td>
-                        <td class="p-4 text-slate-400">${app.email}</td>
+                        <td class="p-4 font-medium">${esc(app.candidate_name)}</td>
+                        <td class="p-4 text-slate-400">${esc(app.email)}</td>
                         <td class="p-4 text-slate-400">Job #${app.job_id}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusClass}">${app.status}</span></td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusClass}">${esc(app.status)}</span></td>
                         <td class="p-4 text-right space-x-2">
                             <button onclick="updateStatus(${app.id}, 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Accept</button>
                             <button onclick="updateStatus(${app.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Reject</button>
@@ -144,7 +314,7 @@
             }
         }
 
-        loadApplicants();
+        refreshAll();
     </script>
 </body>
 </html>
