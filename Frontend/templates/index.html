@@ -4,92 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learn2earn ATS - Application Form</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    
-    <!-- Top Navigation Header -->
+
     <header class="bg-slate-900 border-b border-slate-800 p-6">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
             <div>
                 <h1 class="text-2xl font-bold">Learn2earn Careers</h1>
                 <p class="text-sm text-slate-400">Job Application Portal</p>
             </div>
-            <!-- Clean 3-Page Navigation -->
             <div class="space-x-4">
                 <a href="/" class="text-sm text-slate-300 hover:text-white font-medium">Home</a>
-                <a href="/jobs" class="text-sm text-slate-300 hover:text-white font-medium">View Jobs</a>
-                <a href="/apply" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">Apply Now</a>
+                <a href="/jobs" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">View Open Jobs</a>
             </div>
         </div>
     </header>
 
-    <!-- Main Content: Candidate Application Form -->
     <main class="max-w-xl mx-auto w-full p-6 my-auto space-y-6">
-        <div class="bg-slate-900 p-8 rounded-xl border border-slate-800 shadow-xl">
+
+        <!-- Application form -->
+        <div id="form-card" class="bg-slate-900 p-8 rounded-xl border border-slate-800 shadow-xl">
             <h2 class="text-xl font-semibold mb-1">Submit Your Details</h2>
-            <p class="text-sm text-slate-400 mb-6">Select the position you want to apply for and fill in your info.</p>
+            <p class="text-sm text-slate-400 mb-6">Confirm the position and fill in your information. Our team will review your application.</p>
+
+            <div id="job-notice" class="hidden mb-4 text-sm text-amber-300 bg-amber-950/40 border border-amber-900/50 rounded-lg p-3"></div>
 
             <form id="apply-form" onsubmit="submitApplication(event)" class="space-y-4">
-                <!-- Full Name Field -->
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Position Applying For</label>
+                    <select id="job-id" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                        <option value="">Loading positions...</option>
+                    </select>
+                </div>
+
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Full Name</label>
                     <input type="text" id="candidate-name" required placeholder="e.g. John Doe" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
 
-                <!-- Email Address Field -->
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
                     <input type="email" id="candidate-email" required placeholder="e.g. johndoe@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
 
-                <!-- Job Selection Field -->
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Position Applying For</label>
-                    <select id="job-id" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
-                        <option value="" disabled selected>-- Select a Job Position --</option>
-                        <option value="1">Frontend Developer (Job #1)</option>
-                        <option value="2">Backend Engineer (FastAPI) (Job #2)</option>
-                        <option value="3">Full-Stack Engineer (Job #3)</option>
-                        <option value="4">UI/UX Designer (Job #4)</option>
-                        <option value="5">Data Analyst (Job #5)</option>
-                    </select>
-                </div>
-
-                <!-- CV / Resume Link Field -->
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">CV / Resume Link (URL)</label>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">CV / Resume Link (optional)</label>
                     <input type="url" id="candidate-cv" placeholder="https://linkedin.com/in/yourprofile or Google Drive link" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
 
-                <!-- Submit Button -->
-                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg transition duration-200 mt-2">
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium py-3 rounded-lg transition duration-200 mt-2">
                     Submit Application
                 </button>
             </form>
 
             <div id="status-message" class="mt-4 text-center text-sm font-medium hidden"></div>
         </div>
+
+        <!-- Shown after a successful application -->
+        <div id="success-card" class="hidden bg-slate-900 p-8 rounded-xl border border-emerald-900/60 shadow-xl text-center space-y-4">
+            <div class="mx-auto w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 text-2xl">&#10003;</div>
+            <h2 class="text-xl font-semibold text-white">Application received</h2>
+            <p class="text-sm text-slate-400">Thank you, <span id="success-name" class="text-slate-200 font-medium"></span>. Your application for <span id="success-job" class="text-slate-200 font-medium"></span> is now waiting for review. We'll contact you at <span id="success-email" class="text-slate-200 font-medium"></span>.</p>
+            <a href="/jobs" class="inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-5 py-2.5 rounded-lg border border-slate-700 transition">Browse more jobs</a>
+        </div>
     </main>
 
-    <!-- Script to Submit Data to Render Backend -->
     <script>
         const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
+
+        // Load the approved jobs into the dropdown and pre-select ?job=ID
+        async function loadJobs() {
+            const select = document.getElementById('job-id');
+            const notice = document.getElementById('job-notice');
+            const submitBtn = document.getElementById('submit-btn');
+            const wantedId = new URLSearchParams(window.location.search).get('job');
+
+            try {
+                const response = await fetch(`${API_BASE}/jobs/?status=approved`);
+                if (!response.ok) throw new Error('Failed to load jobs');
+                const data = await response.json();
+                const jobs = Array.isArray(data) ? data : (data.jobs || []);
+
+                select.innerHTML = '';
+
+                if (jobs.length === 0) {
+                    select.innerHTML = '<option value="">No open positions right now</option>';
+                    submitBtn.disabled = true;
+                    return;
+                }
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Select a Job Position --';
+                select.appendChild(placeholder);
+
+                jobs.forEach(job => {
+                    const option = document.createElement('option');
+                    option.value = job.id;
+                    option.textContent = job.title;
+                    select.appendChild(option);
+                });
+
+                if (wantedId) {
+                    const match = jobs.find(job => String(job.id) === wantedId);
+                    if (match) {
+                        select.value = String(match.id);
+                    } else {
+                        notice.textContent = 'That position is no longer available. Please choose another one below.';
+                        notice.classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading jobs:', err);
+                select.innerHTML = '<option value="">Could not load positions</option>';
+                notice.textContent = 'The server may be waking up. Please wait a moment and refresh this page.';
+                notice.classList.remove('hidden');
+                submitBtn.disabled = true;
+            }
+        }
 
         async function submitApplication(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('submit-btn');
             const msg = document.getElementById('status-message');
+            const select = document.getElementById('job-id');
 
             submitBtn.disabled = true;
             submitBtn.innerText = "Submitting Application...";
             msg.classList.add('hidden');
 
+            const name = document.getElementById('candidate-name').value.trim();
+            const email = document.getElementById('candidate-email').value.trim();
+            const cv = document.getElementById('candidate-cv').value.trim();
+            const jobTitle = select.options[select.selectedIndex].text;
+
             const payload = {
-                candidate_name: document.getElementById('candidate-name').value,
-                email: document.getElementById('candidate-email').value,
-                job_id: parseInt(document.getElementById('job-id').value)
+                candidate_name: name,
+                email: email,
+                job_id: parseInt(select.value),
+                resume_url: cv || null
             };
 
             try {
@@ -99,22 +153,25 @@
                     body: JSON.stringify(payload)
                 });
 
-                if (response.ok) {
-                    msg.innerText = "Application submitted successfully!";
-                    msg.className = "mt-4 text-center text-sm font-medium text-emerald-400 block";
-                    document.getElementById('apply-form').reset();
-                } else {
-                    throw new Error("Submission failed");
-                }
+                if (!response.ok) throw new Error("Submission failed");
+
+                document.getElementById('success-name').textContent = name;
+                document.getElementById('success-job').textContent = jobTitle;
+                document.getElementById('success-email').textContent = email;
+                document.getElementById('form-card').classList.add('hidden');
+                document.getElementById('success-card').classList.remove('hidden');
+                document.getElementById('apply-form').reset();
             } catch (err) {
                 console.error("Submission error:", err);
-                msg.innerText = "Error submitting application. Please try again.";
+                msg.innerText = "Error submitting application. Please try again in a moment.";
                 msg.className = "mt-4 text-center text-sm font-medium text-rose-400 block";
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Submit Application";
             }
         }
+
+        document.addEventListener('DOMContentLoaded', loadJobs);
     </script>
 </body>
 </html>
