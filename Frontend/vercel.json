@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/templates/dashboard.html"
+      "destination": "/Frontend/templates/dashboard.html"
     },
     {
       "source": "/dashboard",
-      "destination": "/templates/dashboard.html"
+      "destination": "/Frontend/templates/dashboard.html"
     },
     {
       "source": "/jobs",
-      "destination": "/templates/jobs.html"
+      "destination": "/Frontend/templates/jobs.html"
     }
   ]
 }

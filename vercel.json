@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/Frontend/templates/dashboard.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/Frontend/templates/dashboard.html"
+    },
+    {
+      "source": "/jobs",
+      "destination": "/Frontend/templates/jobs.html"
+    }
+  ]
+}
