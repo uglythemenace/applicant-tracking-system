@@ -25,7 +25,6 @@
 
             <div class="flex flex-wrap items-center justify-center gap-3">
                 <a href="/" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Home</a>
-                <a href="/post-job" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Post a Job</a>
                 <button onclick="fetchJobs()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Refresh Jobs</button>
             </div>
         </header>
@@ -82,7 +81,7 @@
                         <span class="text-xs bg-blue-950 text-blue-400 border border-blue-900/50 font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap">${esc(job.department || 'General')}</span>
                     </div>
                     <p class="text-sm text-gray-400 whitespace-pre-line leading-relaxed flex-1">${esc(job.description)}</p>
-                    <a href="/?job=${encodeURIComponent(job.id)}" class="mt-5 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Apply Now</a>
+                    <a href="/apply?job=${encodeURIComponent(job.id)}" class="mt-5 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Apply Now</a>
                 `;
                 container.appendChild(card);
             });

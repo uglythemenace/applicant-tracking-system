@@ -24,7 +24,7 @@ def create_job(job: JobCreate):
     """New jobs are saved as 'pending' until an admin approves them."""
     try:
         job_data = job.model_dump()
-        job_data["status"] = "pending"
+        job_data["status"] = "approved"
         response = supabase.table("jobs").insert(job_data).execute()
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create job")
