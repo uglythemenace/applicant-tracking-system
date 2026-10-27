@@ -8,6 +8,19 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
+    <!-- Admin sign-in: asks for the admin key before any applicant data is loaded -->
+    <div id="login-overlay" class="hidden fixed inset-0 z-50 bg-slate-950/95 flex items-center justify-center p-6">
+        <form onsubmit="submitAdminKey(event)" class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold">Admin sign in</h2>
+                <p class="text-sm text-slate-400 mt-1">Enter the admin key to manage jobs and applicants.</p>
+            </div>
+            <input type="password" id="admin-key-input" required autocomplete="current-password" placeholder="Admin key" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+            <div id="login-error" class="text-sm text-rose-400 hidden"></div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg transition">Sign in</button>
+        </form>
+    </div>
+
     <!-- Admin Header -->
     <header class="bg-slate-900 border-b border-slate-800 p-6">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -135,7 +148,51 @@
             ));
         }
 
+        // ---------- Admin key ----------
+        // The key is kept for this browser tab only and is cleared when the tab closes.
+        let adminKey = '';
+        try { adminKey = sessionStorage.getItem('adminKey') || ''; } catch (e) { /* storage blocked */ }
+
+        function showLogin(message) {
+            const err = document.getElementById('login-error');
+            if (message) {
+                err.innerText = message;
+                err.classList.remove('hidden');
+            } else {
+                err.classList.add('hidden');
+            }
+            document.getElementById('login-overlay').classList.remove('hidden');
+            document.getElementById('admin-key-input').focus();
+        }
+
+        function submitAdminKey(e) {
+            e.preventDefault();
+            adminKey = document.getElementById('admin-key-input').value.trim();
+            try { sessionStorage.setItem('adminKey', adminKey); } catch (err) { /* storage blocked */ }
+            document.getElementById('admin-key-input').value = '';
+            document.getElementById('login-overlay').classList.add('hidden');
+            refreshAll();
+        }
+
+        // Same as fetch, but sends the admin key. A 401 means the key is wrong, so ask again.
+        async function adminFetch(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: { ...(options.headers || {}), 'X-Admin-Key': adminKey }
+            });
+            if (response.status === 401) {
+                adminKey = '';
+                try { sessionStorage.removeItem('adminKey'); } catch (err) { /* storage blocked */ }
+                showLogin('That key was not accepted. Please try again.');
+            }
+            return response;
+        }
+
         function refreshAll() {
+            if (!adminKey) {
+                showLogin();
+                return;
+            }
             loadJobs();
             loadApplicants();
         }
@@ -203,7 +260,7 @@
             };
 
             try {
-                const response = await fetch(`${API_BASE}/jobs/`, {
+                const response = await adminFetch(`${API_BASE}/jobs/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -227,7 +284,7 @@
 
         async function setJobStatus(id, newStatus) {
             try {
-                const response = await fetch(`${API_BASE}/jobs/${id}/status`, {
+                const response = await adminFetch(`${API_BASE}/jobs/${id}/status`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: newStatus })
@@ -247,7 +304,9 @@
         // ---------- Applicants ----------
         async function loadApplicants() {
             try {
-                const response = await fetch(`${API_BASE}/applications/`);
+                const response = await adminFetch(`${API_BASE}/applications/`);
+                if (response.status === 401) return; // sign-in box is already showing
+                if (!response.ok) throw new Error('Failed to load applicants');
                 const applicants = await response.json();
 
                 const tbody = document.getElementById('applicant-table-body');
@@ -269,6 +328,7 @@
                     let statusClass = 'bg-amber-950 text-amber-400 border-amber-800';
                     if (app.status === 'accepted') statusClass = 'bg-emerald-950 text-emerald-400 border-emerald-800';
                     if (app.status === 'rejected') statusClass = 'bg-rose-950 text-rose-400 border-rose-800';
+                    if (app.status === 'reviewing' || app.status === 'interview') statusClass = 'bg-blue-950 text-blue-400 border-blue-800';
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -278,6 +338,8 @@
                         <td class="p-4 text-slate-400">Job #${app.job_id}</td>
                         <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusClass}">${esc(app.status)}</span></td>
                         <td class="p-4 text-right space-x-2">
+                            <button onclick="updateStatus(${app.id}, 'reviewing')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs font-medium">Reviewing</button>
+                            <button onclick="updateStatus(${app.id}, 'interview')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs font-medium">Interview</button>
                             <button onclick="updateStatus(${app.id}, 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-medium">Accept</button>
                             <button onclick="updateStatus(${app.id}, 'rejected')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded text-xs font-medium">Reject</button>
                         </td>
@@ -297,7 +359,7 @@
 
         async function updateStatus(id, newStatus) {
             try {
-                const response = await fetch(`${API_BASE}/applications/${id}`, {
+                const response = await adminFetch(`${API_BASE}/applications/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: newStatus })

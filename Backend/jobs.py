@@ -1,11 +1,13 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import supabase
+from auth import require_admin
 from schemas import JobCreate, JobResponse, JobStatusUpdate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
+# Public: the careers site and the apply page both read this list.
 @router.get("/")
 def get_jobs(status: Optional[str] = None):
     """List jobs. Use /jobs/?status=approved for the public list."""
@@ -19,9 +21,10 @@ def get_jobs(status: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/", response_model=JobResponse)
+# Admin only: posting a job.
+@router.post("/", response_model=JobResponse, dependencies=[Depends(require_admin)])
 def create_job(job: JobCreate):
-    """New jobs are saved as 'pending' until an admin approves them."""
+    """Jobs posted by an admin go live right away (status 'approved')."""
     try:
         job_data = job.model_dump()
         job_data["status"] = "approved"
@@ -35,6 +38,7 @@ def create_job(job: JobCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Public: a single job.
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: int):
     try:
@@ -48,9 +52,10 @@ def get_job(job_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/{job_id}/status", response_model=JobResponse)
+# Admin only: closing or reopening a job.
+@router.patch("/{job_id}/status", response_model=JobResponse, dependencies=[Depends(require_admin)])
 def update_job_status(job_id: int, update: JobStatusUpdate):
-    """Admin approves or rejects a job posting."""
+    """Admin approves (opens) or rejects (closes) a job posting."""
     try:
         response = (
             supabase.table("jobs")

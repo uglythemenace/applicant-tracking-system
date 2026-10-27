@@ -20,6 +20,7 @@
                     Back
                 </button>
                 <a href="/" class="text-sm text-slate-300 hover:text-white font-medium">Home</a>
+                <a href="/track" class="text-sm text-slate-300 hover:text-white font-medium">Track Application</a>
                 <a href="/jobs" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">View Open Jobs</a>
             </div>
         </div>
@@ -70,6 +71,16 @@
             <div class="mx-auto w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 text-2xl">&#10003;</div>
             <h2 class="text-xl font-semibold text-white">Application received</h2>
             <p class="text-sm text-slate-400">Thank you, <span id="success-name" class="text-slate-200 font-medium"></span>. Your application for <span id="success-job" class="text-slate-200 font-medium"></span> is now waiting for review. We'll contact you at <span id="success-email" class="text-slate-200 font-medium"></span>.</p>
+            <!-- Tracking code: only shown when the server sends one back -->
+            <div id="tracking-box" class="hidden text-left bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+                <p class="text-xs uppercase tracking-wider text-slate-400 text-center">Your tracking code</p>
+                <p id="success-code" class="font-mono text-2xl font-bold text-white tracking-wider text-center select-all"></p>
+                <p class="text-xs text-slate-400 text-center">Save this code. You will need it, together with your email, to check the status of your application.</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" id="copy-btn" onclick="copyCode()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg border border-slate-700 transition">Copy code</button>
+                    <a id="track-link" href="/track" class="flex-1 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition">Track my application</a>
+                </div>
+            </div>
             <a href="/jobs" class="inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-5 py-2.5 rounded-lg border border-slate-700 transition">Browse more jobs</a>
         </div>
     </main>
@@ -168,6 +179,11 @@
 
                 if (!response.ok) throw new Error("Submission failed");
 
+                // The server sends back the new application, including its tracking code
+                let created = {};
+                try { created = await response.json(); } catch (e) { /* no body: show the page without a code */ }
+                showTrackingCode(created.tracking_code);
+
                 document.getElementById('success-name').textContent = name;
                 document.getElementById('success-job').textContent = jobTitle;
                 document.getElementById('success-email').textContent = email;
@@ -182,6 +198,27 @@
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Submit Application";
             }
+        }
+
+        // Shows the tracking code on the success card (hidden if the server did not send one)
+        function showTrackingCode(code) {
+            if (!code) return;
+            document.getElementById('success-code').textContent = code;
+            document.getElementById('track-link').href = `/track?code=${encodeURIComponent(code)}`;
+            document.getElementById('tracking-box').classList.remove('hidden');
+        }
+
+        async function copyCode() {
+            const code = document.getElementById('success-code').textContent;
+            const btn = document.getElementById('copy-btn');
+            try {
+                await navigator.clipboard.writeText(code);
+                btn.textContent = 'Copied!';
+            } catch (err) {
+                // Clipboard blocked: the code is selectable, so ask the person to copy it by hand
+                btn.textContent = 'Select the code and copy it';
+            }
+            setTimeout(() => { btn.textContent = 'Copy code'; }, 2500);
         }
 
         document.addEventListener('DOMContentLoaded', loadJobs);

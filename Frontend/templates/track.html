@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn2earn ATS - Track Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4 sm:p-8 selection:bg-blue-600 selection:text-white">
+
+    <div class="max-w-2xl mx-auto space-y-8">
+
+        <header class="flex flex-col sm:flex-row justify-between items-center bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-800 shadow-xl gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Track your application</h1>
+                <p class="text-xs text-gray-400">Learn2earn Careers</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Home</a>
+                <a href="/jobs" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Open Jobs</a>
+            </div>
+        </header>
+
+        <div class="bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-800 p-6">
+            <p class="text-sm text-gray-400 mb-5">Enter the email you applied with and the tracking code we showed you after applying.</p>
+
+            <form id="track-form" class="space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-300 mb-1.5">Email</label>
+                    <input id="email" type="email" required autocomplete="email" placeholder="you@example.com"
+                        class="w-full bg-gray-950 border border-gray-800 focus:border-blue-600 focus:outline-none rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600">
+                </div>
+                <div>
+                    <label for="code" class="block text-sm font-semibold text-gray-300 mb-1.5">Tracking code</label>
+                    <input id="code" type="text" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="L2E-XXXXXXXX"
+                        class="w-full bg-gray-950 border border-gray-800 focus:border-blue-600 focus:outline-none rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 tracking-wider uppercase">
+                </div>
+                <button id="submit-btn" type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">
+                    Check status
+                </button>
+            </form>
+        </div>
+
+        <div id="result" class="hidden"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://applicant-tracking-system-tbaw.onrender.com';
+
+        // The steps an application moves through, in order
+        const STEPS = ['Received', 'Under review', 'Interview', 'Decision'];
+
+        // Turns whatever status text your admin page saves into a step on the timeline.
+        // If you use different status words, add them here.
+        function describeStatus(rawStatus) {
+            const s = String(rawStatus || '').trim().toLowerCase();
+
+            if (['accepted', 'hired', 'offer', 'offered', 'approved'].includes(s)) {
+                return { step: 3, tone: 'good', title: 'Congratulations, you have been accepted!',
+                    message: 'Our team will contact you by email with the next steps.' };
+            }
+            if (['rejected', 'declined', 'not selected', 'unsuccessful'].includes(s)) {
+                return { step: 3, tone: 'bad', title: 'Not selected this time',
+                    message: 'Thank you for taking the time to apply. We were not able to move your application forward, but we encourage you to apply for future roles.' };
+            }
+            if (['interview', 'interviewing', 'shortlisted', 'interview scheduled'].includes(s)) {
+                return { step: 2, tone: 'progress', title: 'Interview stage',
+                    message: 'You have been shortlisted. Please watch your email for interview details.' };
+            }
+            if (['reviewing', 'under review', 'in review', 'review'].includes(s)) {
+                return { step: 1, tone: 'progress', title: 'Under review',
+                    message: 'Our team is looking at your application right now.' };
+            }
+            if (['pending', 'submitted', 'received', 'new', ''].includes(s)) {
+                return { step: 0, tone: 'progress', title: 'Application received',
+                    message: 'We have your application and it is waiting for review.' };
+            }
+            // A status we do not recognise: show it as written
+            return { step: 1, tone: 'progress', title: String(rawStatus), message: 'This is the latest update on your application.' };
+        }
+
+        // Stops text from the server being treated as HTML code
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
+        function formatDate(iso) {
+            const d = new Date(iso);
+            return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function showMessage(html) {
+            const box = document.getElementById('result');
+            box.className = 'bg-gray-900/80 rounded-2xl border border-gray-800 p-6';
+            box.innerHTML = html;
+        }
+
+        function renderResult(data) {
+            const info = describeStatus(data.status);
+
+            const accent = {
+                good: { dot: 'bg-green-500', ring: 'ring-green-500/30', text: 'text-green-400', box: 'bg-green-950/40 border-green-900/60' },
+                bad: { dot: 'bg-red-500', ring: 'ring-red-500/30', text: 'text-red-400', box: 'bg-red-950/40 border-red-900/60' },
+                progress: { dot: 'bg-blue-500', ring: 'ring-blue-500/30', text: 'text-blue-400', box: 'bg-blue-950/40 border-blue-900/60' },
+            }[info.tone];
+
+            // The last step shows the real outcome instead of a generic "Decision"
+            const labels = STEPS.map((label, i) =>
+                i === 3 && info.step === 3 ? (info.tone === 'good' ? 'Accepted' : 'Not selected') : label
+            );
+
+            const timeline = labels.map((label, i) => {
+                const done = i < info.step;
+                const current = i === info.step;
+                const dotClass = done ? 'bg-blue-600' : current ? accent.dot + ' ring-4 ' + accent.ring : 'bg-gray-800';
+                const textClass = done || current ? 'text-white' : 'text-gray-500';
+                const lineClass = i < STEPS.length - 1
+                    ? `<div class="w-0.5 flex-1 min-h-[1.5rem] ${done ? 'bg-blue-600' : 'bg-gray-800'}"></div>` : '';
+                return `
+                    <li class="flex gap-4">
+                        <div class="flex flex-col items-center">
+                            <span class="w-3.5 h-3.5 rounded-full mt-1 ${dotClass}"></span>
+                            ${lineClass}
+                        </div>
+                        <p class="pb-5 text-sm font-semibold ${textClass}">${esc(label)}</p>
+                    </li>`;
+            }).join('');
+
+            const box = document.getElementById('result');
+            box.className = 'bg-gray-900/80 rounded-2xl border border-gray-800 p-6 space-y-6';
+            box.innerHTML = `
+                <div>
+                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">Applied for</p>
+                    <h2 class="text-xl font-bold text-white">${esc(data.job_title)}</h2>
+                    <p class="text-xs text-gray-500 mt-1">Submitted on ${esc(formatDate(data.applied_at))}</p>
+                </div>
+                <ol>${timeline}</ol>
+                <div class="border rounded-xl p-4 ${accent.box}">
+                    <p class="font-bold ${accent.text}">${esc(info.title)}</p>
+                    <p class="text-sm text-gray-300 mt-1 leading-relaxed">${esc(info.message)}</p>
+                </div>
+            `;
+        }
+
+        async function checkStatus(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const code = document.getElementById('code').value.trim();
+            const button = document.getElementById('submit-btn');
+
+            button.disabled = true;
+            button.textContent = 'Checking...';
+            showMessage('<p class="text-sm text-gray-400">Looking up your application. If this is slow, the server may be waking up.</p>');
+
+            try {
+                const url = `${API_BASE_URL}/applications/track?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+                const response = await fetch(url);
+
+                if (response.status === 404) {
+                    showMessage('<p class="text-sm text-red-400">We could not find an application with that email and code. Check both and try again.</p>');
+                    return;
+                }
+                if (!response.ok) throw new Error('Request failed');
+
+                renderResult(await response.json());
+            } catch (error) {
+                console.error('Tracking error:', error);
+                showMessage('<p class="text-sm text-red-400">Something went wrong. Please wait a moment and try again.</p>');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Check status';
+            }
+        }
+
+        document.getElementById('track-form').addEventListener('submit', checkStatus);
+
+        // Lets the email link prefill the code: /track?code=L2E-XXXXXXXX
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('code')) document.getElementById('code').value = params.get('code');
+        if (params.get('email')) document.getElementById('email').value = params.get('email');
+    </script>
+</body>
+</html>

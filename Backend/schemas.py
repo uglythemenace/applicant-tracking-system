@@ -30,9 +30,19 @@ class ApplicationResponse(ApplicationCreate):
     id: int
     status: str
     created_at: str
+    # Applicants use this code (plus their email) to check their status.
+    tracking_code: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 class ApplicationUpdate(BaseModel):
     status: str
+
+
+# --- Public tracking schemas ---
+class TrackResponse(BaseModel):
+    """Only what an applicant is allowed to see about their own application."""
+    job_title: str
+    status: str
+    applied_at: str

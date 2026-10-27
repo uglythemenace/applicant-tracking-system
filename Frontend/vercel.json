@@ -3,6 +3,7 @@
     { "source": "/", "destination": "/Frontend/templates/jobs.html" },
     { "source": "/jobs", "destination": "/Frontend/templates/jobs.html" },
     { "source": "/apply", "destination": "/Frontend/templates/index.html" },
+    { "source": "/track", "destination": "/Frontend/templates/track.html" },
     { "source": "/admin", "destination": "/Frontend/templates/admin.html" },
     { "source": "/dashboard", "destination": "/Frontend/templates/dashboard.html" },
     { "source": "/post-job", "destination": "/Frontend/templates/post-job.html" }
