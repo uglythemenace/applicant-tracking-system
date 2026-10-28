@@ -1,8 +1,9 @@
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from database import supabase
 from auth import require_admin
+from emailer import send_application_received, send_status_update
 from schemas import (
     ApplicationCreate,
     ApplicationResponse,
@@ -21,9 +22,19 @@ def generate_tracking_code() -> str:
     return f"L2E-{body}"
 
 
+def get_job_title(job_id) -> str:
+    try:
+        job = supabase.table("jobs").select("title").eq("id", job_id).limit(1).execute()
+        if job.data:
+            return job.data[0]["title"]
+    except Exception:
+        pass
+    return "the position you applied for"
+
+
 # --- Public: applicant submits an application ---
 @router.post("/", response_model=ApplicationResponse)
-def create_application(application: ApplicationCreate):
+def create_application(application: ApplicationCreate, background_tasks: BackgroundTasks):
     try:
         app_data = application.model_dump()
         app_data["email"] = app_data["email"].strip().lower()
@@ -42,7 +53,16 @@ def create_application(application: ApplicationCreate):
 
         if response is None or not response.data:
             raise HTTPException(status_code=400, detail="Failed to submit application")
-        return response.data[0]
+
+        saved = response.data[0]
+        background_tasks.add_task(
+            send_application_received,
+            saved["email"],
+            saved.get("candidate_name") or "",
+            get_job_title(saved.get("job_id")),
+            saved["tracking_code"],
+        )
+        return saved
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -79,19 +99,8 @@ def track_application(
         if (record.get("email") or "").strip().lower() != email.strip().lower():
             raise not_found
 
-        job_title = "the position you applied for"
-        job = (
-            supabase.table("jobs")
-            .select("title")
-            .eq("id", record["job_id"])
-            .limit(1)
-            .execute()
-        )
-        if job.data:
-            job_title = job.data[0]["title"]
-
         return {
-            "job_title": job_title,
+            "job_title": get_job_title(record["job_id"]),
             "status": record["status"],
             "applied_at": record["created_at"],
         }
@@ -116,12 +125,31 @@ def get_applications(job_id: int | None = None):
 
 # --- Admin only: change an application's status ---
 @router.patch("/{application_id}", response_model=ApplicationResponse, dependencies=[Depends(require_admin)])
-def update_application_status(application_id: int, update_data: ApplicationUpdate):
+def update_application_status(
+    application_id: int,
+    update_data: ApplicationUpdate,
+    background_tasks: BackgroundTasks,
+):
     try:
-        response = supabase.table("applications").update({"status": update_data.status}).eq("id", application_id).execute()
+        response = (
+            supabase.table("applications")
+            .update({"status": update_data.status})
+            .eq("id", application_id)
+            .execute()
+        )
         if not response.data:
             raise HTTPException(status_code=404, detail="Application not found")
-        return response.data[0]
+
+        saved = response.data[0]
+        background_tasks.add_task(
+            send_status_update,
+            saved["email"],
+            saved.get("candidate_name") or "",
+            get_job_title(saved.get("job_id")),
+            saved["status"],
+            saved.get("tracking_code", ""),
+        )
+        return saved
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

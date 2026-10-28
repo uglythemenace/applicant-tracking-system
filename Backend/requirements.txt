@@ -1,5 +1,6 @@
 fastapi
 uvicorn
-supabase
+supabase>=2.20
 pydantic
 python-dotenv
+resend
