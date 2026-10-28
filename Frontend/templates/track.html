@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learn2earn ATS - Track Application</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/Frontend/static/tailwind.css">
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen p-4 sm:p-8 selection:bg-blue-600 selection:text-white">
 
@@ -42,7 +42,7 @@
             </form>
         </div>
 
-        <div id="result" class="hidden"></div>
+        <div id="result" role="status" aria-live="polite" class="hidden"></div>
     </div>
 
     <script>
@@ -56,12 +56,16 @@
         function describeStatus(rawStatus) {
             const s = String(rawStatus || '').trim().toLowerCase();
 
-            if (['accepted', 'hired', 'offer', 'offered', 'approved'].includes(s)) {
-                return { step: 3, tone: 'good', title: 'Congratulations, you have been accepted!',
+            if (['accepted', 'hired', 'approved'].includes(s)) {
+                return { step: 3, tone: 'good', decision: 'Accepted', title: 'Congratulations, you have been accepted!',
+                    message: 'Our team will contact you by email with the next steps.' };
+            }
+            if (['offer', 'offered'].includes(s)) {
+                return { step: 3, tone: 'good', decision: 'Offer made', title: 'Offer stage',
                     message: 'Our team will contact you by email with the next steps.' };
             }
             if (['rejected', 'declined', 'not selected', 'unsuccessful'].includes(s)) {
-                return { step: 3, tone: 'bad', title: 'Not selected this time',
+                return { step: 3, tone: 'bad', decision: 'Not selected', title: 'Not selected this time',
                     message: 'Thank you for taking the time to apply. We were not able to move your application forward, but we encourage you to apply for future roles.' };
             }
             if (['interview', 'interviewing', 'shortlisted', 'interview scheduled'].includes(s)) {
@@ -77,7 +81,7 @@
                     message: 'We have your application and it is waiting for review.' };
             }
             // A status we do not recognise: show it as written
-            return { step: 1, tone: 'progress', title: String(rawStatus), message: 'This is the latest update on your application.' };
+            return { step: null, tone: 'progress', title: String(rawStatus), message: 'This is the latest update on your application.' };
         }
 
         // Stops text from the server being treated as HTML code
@@ -109,16 +113,17 @@
 
             // The last step shows the real outcome instead of a generic "Decision"
             const labels = STEPS.map((label, i) =>
-                i === 3 && info.step === 3 ? (info.tone === 'good' ? 'Accepted' : 'Not selected') : label
+                i === 3 && info.step === 3 ? info.decision : label
             );
 
             const timeline = labels.map((label, i) => {
-                const done = i < info.step;
+                // The API only returns the current status, not the applicant's
+                // history. Do not imply that earlier stages were completed.
                 const current = i === info.step;
-                const dotClass = done ? 'bg-blue-600' : current ? accent.dot + ' ring-4 ' + accent.ring : 'bg-gray-800';
-                const textClass = done || current ? 'text-white' : 'text-gray-500';
+                const dotClass = current ? accent.dot + ' ring-4 ' + accent.ring : 'bg-gray-800';
+                const textClass = current ? 'text-white' : 'text-gray-400';
                 const lineClass = i < STEPS.length - 1
-                    ? `<div class="w-0.5 flex-1 min-h-[1.5rem] ${done ? 'bg-blue-600' : 'bg-gray-800'}"></div>` : '';
+                    ? '<div class="w-0.5 flex-1 min-h-[1.5rem] bg-gray-800"></div>' : '';
                 return `
                     <li class="flex gap-4">
                         <div class="flex flex-col items-center">
@@ -133,11 +138,14 @@
             box.className = 'bg-gray-900/80 rounded-2xl border border-gray-800 p-6 space-y-6';
             box.innerHTML = `
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">Applied for</p>
+                    <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">Applied for</p>
                     <h2 class="text-xl font-bold text-white">${esc(data.job_title)}</h2>
-                    <p class="text-xs text-gray-500 mt-1">Submitted on ${esc(formatDate(data.applied_at))}</p>
+                    <p class="text-xs text-gray-400 mt-1">Submitted on ${esc(formatDate(data.applied_at))}</p>
                 </div>
-                <ol>${timeline}</ol>
+                <div>
+                    <p class="text-xs text-gray-400 mb-4">Your current stage is highlighted. Some stages may be skipped.</p>
+                    <ol>${timeline}</ol>
+                </div>
                 <div class="border rounded-xl p-4 ${accent.box}">
                     <p class="font-bold ${accent.text}">${esc(info.title)}</p>
                     <p class="text-sm text-gray-300 mt-1 leading-relaxed">${esc(info.message)}</p>
@@ -156,8 +164,12 @@
             showMessage('<p class="text-sm text-gray-400">Looking up your application. If this is slow, the server may be waking up.</p>');
 
             try {
-                const url = `${API_BASE_URL}/applications/track?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
-                const response = await fetch(url);
+                const response = await fetch(`${API_BASE_URL}/applications/track`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code }),
+                    cache: 'no-store'
+                });
 
                 if (response.status === 404) {
                     showMessage('<p class="text-sm text-red-400">We could not find an application with that email and code. Check both and try again.</p>');
@@ -177,10 +189,24 @@
 
         document.getElementById('track-form').addEventListener('submit', checkStatus);
 
-        // Lets the email link prefill the code: /track?code=L2E-XXXXXXXX
+        // Consume the code placed in this tab after a successful application.
+        try {
+            const savedCode = sessionStorage.getItem('learn2earn-tracking-code');
+            if (savedCode) document.getElementById('code').value = savedCode;
+            sessionStorage.removeItem('learn2earn-tracking-code');
+        } catch (error) { /* the applicant can enter the code by hand */ }
+
+        // Preserve old shared links, but remove their sensitive fields from the
+        // visible URL immediately. New links never include the code or email.
         const params = new URLSearchParams(window.location.search);
-        if (params.get('code')) document.getElementById('code').value = params.get('code');
-        if (params.get('email')) document.getElementById('email').value = params.get('email');
+        if (params.has('code') || params.has('email')) {
+            if (params.get('code')) document.getElementById('code').value = params.get('code');
+            if (params.get('email')) document.getElementById('email').value = params.get('email');
+            params.delete('code');
+            params.delete('email');
+            const remaining = params.toString();
+            history.replaceState(null, '', location.pathname + (remaining ? '?' + remaining : '') + location.hash);
+        }
     </script>
 </body>
 </html>

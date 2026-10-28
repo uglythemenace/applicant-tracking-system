@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Learn2earn ATS</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/Frontend/static/tailwind.css">
 <style>
   html { scroll-behavior: smooth; }
   .hero-bg {
@@ -19,19 +19,24 @@
 
 <!-- Navigation -->
 <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-blue-100">
-  <nav class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-3">
+  <nav aria-label="Main navigation" class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+    <a href="/" class="flex items-center gap-2 sm:gap-3 shrink-0">
       <span class="bg-blue-600 text-white w-9 h-9 rounded-xl shadow-md shadow-blue-600/30 flex items-center justify-center">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
         </svg>
       </span>
-      <span class="font-extrabold text-lg tracking-tight text-slate-900">Learn2earn <span class="text-blue-600">ATS</span></span>
+      <span class="font-extrabold text-base sm:text-lg tracking-tight text-slate-900">Learn2earn <span class="text-blue-600">ATS</span></span>
     </a>
     <div class="hidden sm:flex items-center gap-8 text-sm font-medium text-slate-600">
       <a href="#how" class="hover:text-blue-600 transition">How it works</a>
       <a href="#why" class="hover:text-blue-600 transition">Why join us</a>
+      <a href="/track" class="hover:text-blue-600 transition">Track application</a>
       <a href="/jobs" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg shadow-md shadow-blue-600/20 transition">Open Jobs</a>
+    </div>
+    <div class="flex sm:hidden items-center gap-3 text-xs font-semibold">
+      <a href="/track" class="text-slate-700 hover:text-blue-600">Track</a>
+      <a href="/jobs" class="bg-blue-600 text-white px-3 py-2 rounded-lg">Jobs</a>
     </div>
   </nav>
 </header>
@@ -131,7 +136,7 @@
 <section class="bg-blue-600">
   <div class="max-w-4xl mx-auto px-6 py-16 text-center space-y-6">
     <h2 class="text-3xl font-extrabold text-white">Ready to get started?</h2>
-    <p class="text-blue-100">See what's open right now and apply today.</p>
+    <p class="text-white">See what's open right now and apply today.</p>
     <a href="/jobs" class="inline-block bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-3.5 rounded-xl shadow-lg transition transform hover:-translate-y-0.5">
       View Open Jobs
     </a>
@@ -144,7 +149,7 @@
 <footer class="bg-white border-t border-blue-100">
   <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
     <p>&copy; <span id="year"></span> Learn2earn. All rights reserved.</p>
-    <a href="/jobs" class="hover:text-blue-600 transition">Open positions</a>
+    <div class="flex gap-5"><a href="/jobs" class="hover:text-blue-600 transition">Open positions</a><a href="/track" class="hover:text-blue-600 transition">Track application</a></div>
   </div>
 </footer>
 
