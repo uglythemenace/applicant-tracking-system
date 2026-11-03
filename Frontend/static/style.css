@@ -360,6 +360,8 @@ table.data { width: 100%; border-collapse: collapse; font-size: 1rem; }
 .admin-job { display: grid; gap: 8px; padding: 16px 0; border-top: 1px solid var(--line); }
 .admin-job:first-child { border-top: 0; padding-top: 0; }
 .admin-job .job-head strong { overflow-wrap: anywhere; }
+.archive-tools { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+#archived-jobs-list { margin-top: 12px; }
 
 .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 .bar-label { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; margin-bottom: 4px; }

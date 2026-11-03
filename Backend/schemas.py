@@ -15,12 +15,17 @@ class JobResponse(JobCreate):
     id: int
     created_at: str
     status: Optional[str] = None
+    is_archived: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class JobStatusUpdate(BaseModel):
     status: Literal["approved", "rejected"]
+
+
+class JobArchiveUpdate(BaseModel):
+    is_archived: bool
 
 
 # --- Candidate application schemas ---

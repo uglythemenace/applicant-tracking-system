@@ -15,7 +15,7 @@
     <div class="wrap">
       <div class="page-head">
         <h1>Jobs and applications</h1>
-        <p>Post jobs, close them when they are filled, and review the people who applied.</p>
+        <p>Post jobs, close filled roles, archive old postings, and review applicants.</p>
         <div class="row" style="margin-top:16px">
           <button type="button" id="refresh-btn" class="btn btn-secondary btn-small">Refresh the lists</button>
         </div>
@@ -52,7 +52,12 @@
 
           <div class="panel">
             <h3>Posted jobs</h3>
+            <p class="muted">Close a job to stop new applications. Archive closed jobs to tidy this list; their applications stay saved.</p>
             <div id="jobs-list"><p class="muted">Loading jobs&hellip;</p></div>
+            <div class="archive-tools">
+              <button type="button" id="toggle-archived-btn" class="btn btn-secondary btn-small" aria-expanded="false" hidden>Show archived jobs</button>
+              <div id="archived-jobs-list" hidden></div>
+            </div>
           </div>
         </div>
       </section>
@@ -88,6 +93,7 @@
     let jobsById = {};
     let applicants = [];
     let filter = 'all';
+    let archivedJobsVisible = false;
 
     // ----- Jobs -----
     async function loadJobs() {
@@ -101,11 +107,13 @@
         if (!L2E.keyIsCurrent(key)) return;
         const jobs = Array.isArray(data) ? data : (data.jobs || []);
         jobsById = Object.fromEntries(jobs.map(j => [j.id, j]));
+        const activeJobs = jobs.filter(job => !job.is_archived);
+        const archivedJobs = jobs.filter(job => job.is_archived);
         list.replaceChildren();
-        if (jobs.length === 0) {
-          list.append(L2E.el('p', { class: 'muted', text: 'No jobs yet. Use the form to post your first job.' }));
+        if (activeJobs.length === 0) {
+          list.append(L2E.el('p', { class: 'muted', text: jobs.length ? 'No jobs in this list. Restore an archived job or post a new one.' : 'No jobs yet. Use the form to post your first job.' }));
         }
-        jobs.forEach(job => {
+        activeJobs.forEach(job => {
           const open = job.status === 'approved';
           const btn = L2E.el('button', {
             type: 'button',
@@ -114,13 +122,49 @@
             text: open ? 'Close this job' : 'Reopen this job'
           });
           btn.addEventListener('click', () => setJobStatus(job, open ? 'rejected' : 'approved'));
+          const actions = [btn];
+          if (!open) {
+            const archive = L2E.el('button', {
+              type: 'button',
+              class: 'btn btn-small btn-secondary',
+              'aria-label': 'Archive ' + job.title,
+              text: 'Archive job'
+            });
+            archive.addEventListener('click', () => setJobArchived(job, true));
+            actions.push(archive);
+          }
           list.append(L2E.el('div', { class: 'admin-job' },
             L2E.el('div', { class: 'job-head' },
               L2E.el('strong', { text: job.title }),
               L2E.el('span', { class: 'pill ' + (open ? 'pill-good' : 'pill-muted'), text: open ? 'Open' : 'Closed' }),
               L2E.el('span', { class: 'pill', text: job.department || 'General' })),
             L2E.el('p', { class: 'job-desc muted', text: job.description }),
-            L2E.el('div', {}, btn)));
+            L2E.el('div', { class: 'row-actions' }, ...actions)));
+        });
+        const archivedList = $('archived-jobs-list');
+        const archiveToggle = $('toggle-archived-btn');
+        archivedList.replaceChildren();
+        archivedJobsVisible = false;
+        archivedList.hidden = true;
+        archiveToggle.hidden = archivedJobs.length === 0;
+        archiveToggle.dataset.count = String(archivedJobs.length);
+        archiveToggle.setAttribute('aria-expanded', 'false');
+        archiveToggle.textContent = archivedJobs.length ? 'Show archived jobs (' + archivedJobs.length + ')' : 'Show archived jobs';
+        archivedJobs.forEach(job => {
+          const restore = L2E.el('button', {
+            type: 'button',
+            class: 'btn btn-small btn-secondary',
+            'aria-label': 'Restore ' + job.title,
+            text: 'Restore job'
+          });
+          restore.addEventListener('click', () => setJobArchived(job, false));
+          archivedList.append(L2E.el('div', { class: 'admin-job' },
+            L2E.el('div', { class: 'job-head' },
+              L2E.el('strong', { text: job.title }),
+              L2E.el('span', { class: 'pill pill-muted', text: 'Archived' }),
+              L2E.el('span', { class: 'pill', text: job.department || 'General' })),
+            L2E.el('p', { class: 'job-desc muted', text: job.description }),
+            L2E.el('div', { class: 'row-actions' }, restore)));
         });
         renderApplicants(); // job names may have just arrived
       } catch (err) {
@@ -176,6 +220,28 @@
         loadJobs();
       } catch (err) {
         console.error('Error updating job:', err);
+        L2E.toast("Couldn't update the job. Try again in a moment.", 'bad');
+      }
+    }
+
+    async function setJobArchived(job, isArchived) {
+      const ok = await L2E.confirmBox({
+        title: isArchived ? 'Archive this closed job?' : 'Restore this archived job?',
+        message: isArchived
+          ? '"' + job.title + '" will be removed from the main jobs list. Its applications will be kept, and you can restore it later.'
+          : '"' + job.title + '" will return to the closed jobs list. You can reopen it separately when it is available again.',
+        confirmLabel: isArchived ? 'Archive job' : 'Restore job'
+      });
+      if (!ok) return;
+      try {
+        const res = await L2E.adminFetch('/jobs/' + job.id + '/archive', {
+          method: 'PATCH', body: { is_archived: isArchived }
+        });
+        if (!res.ok) throw new Error('bad archive status');
+        L2E.toast(isArchived ? 'Job archived. Its applications were kept.' : 'Job restored to the closed jobs list.');
+        loadJobs();
+      } catch (err) {
+        console.error('Error archiving job:', err);
         L2E.toast("Couldn't update the job. Try again in a moment.", 'bad');
       }
     }
@@ -294,10 +360,15 @@
     function refreshAll() { loadJobs(); loadApplicants(); }
 
     function clearAll() {
-      applicants = []; jobsById = {}; filter = 'all';
+      applicants = []; jobsById = {}; filter = 'all'; archivedJobsVisible = false;
       $('job-form').reset();
       $('job-message').hidden = true;
       $('jobs-list').replaceChildren();
+      $('archived-jobs-list').replaceChildren();
+      $('archived-jobs-list').hidden = true;
+      $('toggle-archived-btn').hidden = true;
+      $('toggle-archived-btn').dataset.count = '0';
+      $('toggle-archived-btn').setAttribute('aria-expanded', 'false');
       $('filters').replaceChildren();
       $('applicant-table-body').replaceChildren();
       for (const id of ['total-count', 'pending-count', 'accepted-count']) $(id).textContent = '0';
@@ -305,6 +376,12 @@
 
     $('job-form').addEventListener('submit', postJob);
     $('refresh-btn').addEventListener('click', refreshAll);
+    $('toggle-archived-btn').addEventListener('click', () => {
+      archivedJobsVisible = !archivedJobsVisible;
+      $('archived-jobs-list').hidden = !archivedJobsVisible;
+      $('toggle-archived-btn').setAttribute('aria-expanded', String(archivedJobsVisible));
+      $('toggle-archived-btn').textContent = (archivedJobsVisible ? 'Hide' : 'Show') + ' archived jobs (' + $('toggle-archived-btn').dataset.count + ')';
+    });
     L2E.startStaff(refreshAll, clearAll);
   </script>
 </body>
