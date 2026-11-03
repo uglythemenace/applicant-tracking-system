@@ -1,144 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Dashboard</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff: summary | Learn2earn</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-    
-    <!-- Main Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-6">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold">Learn2earn ATS</h1>
-                <p class="text-sm text-slate-400">Applicants & Recruitment Dashboard</p>
-            </div>
-            <div class="space-x-4">
-                <a href="/Frontend/templates/dashboard.html" class="bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700">Home</a>
-                <button onclick="loadApplicants()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-500">Refresh Applicants</button>
-            </div>
+<body data-page="dashboard" data-staff="true">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Hiring summary</h1>
+        <p>A quick look at how many people applied and where they are. To change a status, go to Jobs and applications.</p>
+        <div class="row" style="margin-top:16px">
+          <button type="button" id="refresh-btn" class="btn btn-secondary btn-small">Refresh</button>
+          <a class="btn btn-plain btn-small" href="/admin">Jobs and applications</a>
         </div>
-    </header>
+      </div>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto p-6 space-y-6">
-        
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                <p class="text-sm text-slate-400">TOTAL APPLICANTS</p>
-                <h3 id="total-count" class="text-3xl font-bold mt-2">0</h3>
-            </div>
-            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                <p class="text-sm text-slate-400">PENDING REVIEW</p>
-                <h3 id="pending-count" class="text-3xl font-bold mt-2">0</h3>
-            </div>
-            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                <p class="text-sm text-slate-400">HIRED / ACCEPTED</p>
-                <h3 id="accepted-count" class="text-3xl font-bold mt-2">0</h3>
-            </div>
+      <section aria-label="Totals" class="tiles">
+        <div class="tile"><p class="tile-num" id="total-count">0</p><p class="tile-label">People applied</p></div>
+        <div class="tile"><p class="tile-num" id="pending-count">0</p><p class="tile-label">Waiting for review</p></div>
+        <div class="tile"><p class="tile-num" id="accepted-count">0</p><p class="tile-label">Accepted</p></div>
+      </section>
+
+      <section class="section" aria-labelledby="by-status">
+        <div class="two-col" style="grid-template-columns:1fr">
+          <div class="panel">
+            <h2 id="by-status" style="font-size:1.35rem">Applications by status</h2>
+            <ul class="bars" id="bars"><li class="muted">Loading&hellip;</li></ul>
+          </div>
         </div>
+      </section>
 
-        <!-- Candidate Table Section -->
-        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-            <div class="p-6 border-b border-slate-800">
-                <h2 class="text-lg font-semibold">Candidate Applications</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                            <th class="p-4">ID</th>
-                            <th class="p-4">Candidate Name</th>
-                            <th class="p-4">Email</th>
-                            <th class="p-4">Job ID</th>
-                            <th class="p-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="applicant-table-body" class="divide-y divide-slate-800 text-sm">
-                        <tr>
-                            <td colspan="5" class="p-6 text-center text-slate-400">Loading records...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+      <section class="section" style="padding-top:0" aria-labelledby="recent-title">
+        <h2 id="recent-title">Latest applications</h2>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th scope="col">Applicant</th><th scope="col">Applied</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody id="applicant-table-body">
+              <tr><td colspan="3" class="empty">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
         </div>
-    </main>
+      </section>
+    </div>
+  </main>
 
-    <!-- Script to Fetch and Update Data with Action Buttons -->
-    <script>
-        const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
+  <footer id="site-footer" class="site-footer"></footer>
+  <script src="/Frontend/static/script.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const ORDER = ['pending', 'reviewing', 'interview', 'accepted', 'rejected'];
+    const BAR_TONE = { pending: 'is-warn', reviewing: '', interview: '', accepted: 'is-good', rejected: 'is-bad' };
 
-        async function loadApplicants() {
-            try {
-                const response = await fetch(`${API_BASE}/applications/`);
-                const applicants = await response.json();
+    function render(apps) {
+      const total = apps.length;
+      const count = (s) => apps.filter(a => a.status === s).length;
+      $('total-count').textContent = total;
+      $('pending-count').textContent = count('pending');
+      $('accepted-count').textContent = count('accepted');
 
-                const tbody = document.getElementById('applicant-table-body');
-                tbody.innerHTML = '';
+      $('bars').replaceChildren(...ORDER.map(s => {
+        const n = count(s);
+        const pct = total ? Math.round((n / total) * 100) : 0;
+        const fill = L2E.el('div', { class: 'bar-fill ' + BAR_TONE[s] });
+        fill.style.setProperty('--pct', pct + '%');
+        return L2E.el('li', {},
+          L2E.el('div', { class: 'bar-label' }, L2E.el('span', { text: L2E.statusInfo(s).label }), L2E.el('span', { text: n + (total ? ' (' + pct + '%)' : '') })),
+          L2E.el('div', { class: 'bar-track', role: 'img', 'aria-label': L2E.statusInfo(s).label + ': ' + n + ' of ' + total }, fill));
+      }));
 
-                let total = applicants.length;
-                let pending = 0;
-                let accepted = 0;
+      const tbody = $('applicant-table-body');
+      tbody.replaceChildren();
+      if (total === 0) {
+        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '3', class: 'empty', text: 'No one has applied yet.' })));
+        return;
+      }
+      apps.slice().sort((a, b) => b.id - a.id).slice(0, 8).forEach(app => {
+        const info = L2E.statusInfo(app.status);
+        tbody.append(L2E.el('tr', {},
+          L2E.el('td', { 'data-label': 'Applicant' }, L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }))),
+          L2E.el('td', { 'data-label': 'Applied', text: app.created_at ? L2E.formatDate(app.created_at) : '' }),
+          L2E.el('td', { 'data-label': 'Status' }, L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label }))));
+      });
+    }
 
-                if (total === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No applicants found.</td></tr>`;
-                    return;
-                }
+    async function load() {
+      const key = L2E.currentKey();
+      try {
+        const res = await L2E.adminFetch('/applications/', { onSlow: () => { $('bars').replaceChildren(L2E.el('li', { class: 'muted', text: L2E.WAKE_NOTE })); } });
+        if (res.status === 401 || !L2E.keyIsCurrent(key)) return;
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        if (!L2E.keyIsCurrent(key)) return;
+        render(data);
+      } catch (err) {
+        console.error('Error loading applicants:', err);
+        if (!L2E.keyIsCurrent(key)) return;
+        $('bars').replaceChildren(L2E.el('li', { class: 'alert alert-warn', text: "Couldn't load the numbers. Press Refresh in a moment." }));
+      }
+    }
 
-                applicants.forEach(app => {
-                    if (app.status === 'pending') pending++;
-                    if (app.status === 'accepted') accepted++;
+    function clearAll() {
+      for (const id of ['total-count', 'pending-count', 'accepted-count']) $(id).textContent = '0';
+      $('bars').replaceChildren();
+      $('applicant-table-body').replaceChildren();
+    }
 
-                    const statusColor = app.status === 'accepted' ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-amber-950 text-amber-400 border-amber-800';
-
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td class="p-4 font-mono text-slate-400">#${app.id}</td>
-                        <td class="p-4 font-medium">${app.candidate_name}</td>
-                        <td class="p-4 text-slate-400">${app.email}</td>
-                        <td class="p-4 text-slate-400">Job #${app.job_id}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs border ${statusColor}">${app.status}</span></td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
-                document.getElementById('total-count').innerText = total;
-                document.getElementById('pending-count').innerText = pending;
-                document.getElementById('accepted-count').innerText = accepted;
-
-            } catch (error) {
-                console.error("Error loading applicants:", error);
-                document.getElementById('applicant-table-body').innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-400">Failed to load data from backend.</td></tr>`;
-            }
-        }
-
-        async function updateStatus(id, newStatus) {
-            try {
-                const response = await fetch(`${API_BASE}/applications/${id}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-
-                if (response.ok) {
-                    loadApplicants(); // Refresh table automatically
-                } else {
-                    alert('Failed to update status.');
-                }
-            } catch (err) {
-                console.error("Error updating status:", err);
-                alert('Network error while updating status.');
-            }
-        }
-
-        // Load data on page open
-        loadApplicants();
-    </script>
+    $('refresh-btn').addEventListener('click', load);
+    L2E.startStaff(load, clearAll);
+  </script>
 </body>
 </html>

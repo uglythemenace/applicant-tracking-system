@@ -1,227 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Application Form</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for a job | Learn2earn</title>
+  <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+<body data-page="apply">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header id="site-header" class="site-header"></header>
 
-    <header class="bg-slate-900 border-b border-slate-800 p-6">
-        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div>
-                <h1 class="text-2xl font-bold">Learn2earn Careers</h1>
-                <p class="text-sm text-slate-400">Job Application Portal</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <button onclick="goBack()" class="text-sm text-slate-300 hover:text-white font-medium inline-flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
-                    Back
-                </button>
-                <a href="/" class="text-sm text-slate-300 hover:text-white font-medium">Home</a>
-                <a href="/track" class="text-sm text-slate-300 hover:text-white font-medium">Track Application</a>
-                <a href="/jobs" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">View Open Jobs</a>
-            </div>
-        </div>
-    </header>
+  <main id="main">
+    <div class="wrap wrap-narrow">
 
-    <main class="max-w-xl mx-auto w-full p-6 my-auto space-y-6">
-
-        <!-- Application form -->
-        <div id="form-card" class="bg-slate-900 p-8 rounded-xl border border-slate-800 shadow-xl">
-            <h2 class="text-xl font-semibold mb-1">Submit Your Details</h2>
-            <p class="text-sm text-slate-400 mb-6">Confirm the position and fill in your information. Our team will review your application.</p>
-
-            <div id="job-notice" class="hidden mb-4 text-sm text-amber-300 bg-amber-950/40 border border-amber-900/50 rounded-lg p-3"></div>
-
-            <form id="apply-form" onsubmit="submitApplication(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Position Applying For</label>
-                    <select id="job-id" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
-                        <option value="">Loading positions...</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Full Name</label>
-                    <input type="text" id="candidate-name" required placeholder="e.g. John Doe" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
-                    <input type="email" id="candidate-email" required placeholder="e.g. johndoe@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-2">CV / Resume Link (optional)</label>
-                    <input type="url" id="candidate-cv" placeholder="https://linkedin.com/in/yourprofile or Google Drive link" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
-                </div>
-
-                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium py-3 rounded-lg transition duration-200 mt-2">
-                    Submit Application
-                </button>
-            </form>
-
-            <div id="status-message" class="mt-4 text-center text-sm font-medium hidden"></div>
+      <!-- The application form -->
+      <div id="form-card">
+        <div class="page-head">
+          <h1>Apply for a job</h1>
+          <p>It takes about five minutes. Fields marked required must be filled in.</p>
         </div>
 
-        <!-- Shown after a successful application -->
-        <div id="success-card" class="hidden bg-slate-900 p-8 rounded-xl border border-emerald-900/60 shadow-xl text-center space-y-4">
-            <div class="mx-auto w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 text-2xl">&#10003;</div>
-            <h2 class="text-xl font-semibold text-white">Application received</h2>
-            <p class="text-sm text-slate-400">Thank you, <span id="success-name" class="text-slate-200 font-medium"></span>. Your application for <span id="success-job" class="text-slate-200 font-medium"></span> is now waiting for review. We'll contact you at <span id="success-email" class="text-slate-200 font-medium"></span>.</p>
-            <!-- Tracking code: only shown when the server sends one back -->
-            <div id="tracking-box" class="hidden text-left bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
-                <p class="text-xs uppercase tracking-wider text-slate-400 text-center">Your tracking code</p>
-                <p id="success-code" class="font-mono text-2xl font-bold text-white tracking-wider text-center select-all"></p>
-                <p class="text-xs text-slate-400 text-center">Save this code. You will need it, together with your email, to check the status of your application.</p>
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <button type="button" id="copy-btn" onclick="copyCode()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg border border-slate-700 transition">Copy code</button>
-                    <a id="track-link" href="/track" class="flex-1 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition">Track my application</a>
-                </div>
-            </div>
-            <a href="/jobs" class="inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-5 py-2.5 rounded-lg border border-slate-700 transition">Browse more jobs</a>
+        <div id="job-notice" role="status"></div>
+
+        <form id="apply-form" class="panel" novalidate>
+          <div class="field" id="f-job">
+            <label for="job-id">Which job are you applying for? (required)</label>
+            <select id="job-id" required>
+              <option value="">Loading jobs&hellip;</option>
+            </select>
+            <p class="error-text" id="e-job">Choose a job from the list.</p>
+          </div>
+
+          <div class="field" id="f-name">
+            <label for="candidate-name">Your full name (required)</label>
+            <input type="text" id="candidate-name" autocomplete="name" maxlength="120" placeholder="For example: Maria Johnson" required>
+            <p class="error-text" id="e-name">Enter your full name.</p>
+          </div>
+
+          <div class="field" id="f-email">
+            <label for="candidate-email">Your email address (required)</label>
+            <span class="hint" id="h-email">We will use this to contact you. You will also need it to check your application.</span>
+            <input type="email" id="candidate-email" autocomplete="email" inputmode="email" maxlength="254" placeholder="For example: maria@example.com" required aria-describedby="h-email e-email">
+            <p class="error-text" id="e-email">Enter an email address like name@example.com.</p>
+          </div>
+
+          <div class="field" id="f-cv">
+            <label for="candidate-cv">Link to your resume (optional)</label>
+            <span class="hint" id="h-cv">If your resume is online, such as on Google Drive or LinkedIn, paste the link here. You can skip this.</span>
+            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="Starts with https://" aria-describedby="h-cv e-cv">
+            <p class="error-text" id="e-cv">The link must start with http:// or https://. Or leave this box empty.</p>
+          </div>
+
+          <div id="status-message" role="alert" hidden></div>
+          <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Send my application</button>
+        </form>
+      </div>
+
+      <!-- Shown after a successful application -->
+      <div id="success-card" hidden>
+        <div class="page-head">
+          <div class="success-head">
+            <span class="success-icon" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            </span>
+            <h1 id="success-heading" tabindex="-1" style="font-size:clamp(1.6rem,5vw,2.2rem);margin:0">We got your application</h1>
+          </div>
+          <p>Thank you, <strong id="success-name"></strong>. Your application for <strong id="success-job"></strong> is waiting for review. We will contact you at <strong id="success-email"></strong>.</p>
         </div>
-    </main>
 
-    <script>
-        const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
+        <!-- Tracking code: only shown when the server sends one back -->
+        <div id="tracking-box" class="ticket" hidden>
+          <div class="ticket-top">
+            <p class="ticket-label">Your tracking code</p>
+            <p id="success-code" class="ticket-code"></p>
+          </div>
+          <div class="ticket-stub">
+            <p><strong>Save this code now.</strong> You need it, with your email, to check your application. Take a screenshot or write it down.</p>
+            <div class="ticket-actions">
+              <button type="button" id="copy-btn" class="btn btn-plain">Copy code</button>
+              <a id="track-link" href="/track" class="btn btn-primary">Check my application</a>
+            </div>
+          </div>
+        </div>
 
-        // Go to the previous page, or the jobs list if there is no history
-        function goBack() {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = '/jobs';
-            }
+        <p><a href="/jobs" class="btn btn-secondary">Look at more jobs</a></p>
+      </div>
+
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+  <script src="/Frontend/static/script.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const select = $('job-id');
+    const submitBtn = $('submit-btn');
+    const notice = $('job-notice');
+    const msg = $('status-message');
+
+    function setError(fieldId, input, on) {
+      $(fieldId).classList.toggle('has-error', on);
+      if (on) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    }
+
+    function showNotice(tone, text) {
+      notice.replaceChildren(L2E.el('div', { class: 'alert alert-' + tone, text }));
+    }
+
+    async function loadJobs() {
+      const wantedId = new URLSearchParams(window.location.search).get('job');
+      try {
+        const jobs = await L2E.loadOpenJobs(() => showNotice('info', L2E.WAKE_NOTE));
+        notice.replaceChildren();
+        if (jobs.length === 0) {
+          select.replaceChildren(L2E.el('option', { value: '', text: 'No jobs are open right now' }));
+          submitBtn.disabled = true;
+          showNotice('info', 'No jobs are open right now. Please check back soon.');
+          return;
         }
-
-        // Load the approved jobs into the dropdown and pre-select ?job=ID
-        async function loadJobs() {
-            const select = document.getElementById('job-id');
-            const notice = document.getElementById('job-notice');
-            const submitBtn = document.getElementById('submit-btn');
-            const wantedId = new URLSearchParams(window.location.search).get('job');
-
-            try {
-                const response = await fetch(`${API_BASE}/jobs/?status=approved`);
-                if (!response.ok) throw new Error('Failed to load jobs');
-                const data = await response.json();
-                const jobs = Array.isArray(data) ? data : (data.jobs || []);
-
-                select.innerHTML = '';
-
-                if (jobs.length === 0) {
-                    select.innerHTML = '<option value="">No open positions right now</option>';
-                    submitBtn.disabled = true;
-                    return;
-                }
-
-                const placeholder = document.createElement('option');
-                placeholder.value = '';
-                placeholder.textContent = '-- Select a Job Position --';
-                select.appendChild(placeholder);
-
-                jobs.forEach(job => {
-                    const option = document.createElement('option');
-                    option.value = job.id;
-                    option.textContent = job.title;
-                    select.appendChild(option);
-                });
-
-                if (wantedId) {
-                    const match = jobs.find(job => String(job.id) === wantedId);
-                    if (match) {
-                        select.value = String(match.id);
-                    } else {
-                        notice.textContent = 'That position is no longer available. Please choose another one below.';
-                        notice.classList.remove('hidden');
-                    }
-                }
-            } catch (err) {
-                console.error('Error loading jobs:', err);
-                select.innerHTML = '<option value="">Could not load positions</option>';
-                notice.textContent = 'The server may be waking up. Please wait a moment and refresh this page.';
-                notice.classList.remove('hidden');
-                submitBtn.disabled = true;
-            }
+        select.replaceChildren(
+          L2E.el('option', { value: '', text: 'Choose a job' }),
+          ...jobs.map(j => L2E.el('option', { value: j.id, text: j.title })));
+        submitBtn.disabled = false;
+        if (wantedId) {
+          const match = jobs.find(j => String(j.id) === wantedId);
+          if (match) select.value = String(match.id);
+          else showNotice('warn', 'That job is no longer open. Please choose another one from the list.');
         }
+      } catch (err) {
+        select.replaceChildren(L2E.el('option', { value: '', text: "We couldn't load the jobs" }));
+        submitBtn.disabled = true;
+        const retry = L2E.el('button', { type: 'button', class: 'link-btn', text: 'Try again' });
+        retry.addEventListener('click', () => { notice.replaceChildren(); select.replaceChildren(L2E.el('option', { value: '', text: 'Loading jobs…' })); loadJobs(); });
+        notice.replaceChildren(L2E.el('div', { class: 'alert alert-warn' },
+          L2E.el('strong', { text: "We couldn't load the jobs." }),
+          L2E.el('p', { text: 'The server may still be waking up. Wait a few seconds, then try again.' }),
+          retry));
+      }
+    }
 
-        async function submitApplication(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submit-btn');
-            const msg = document.getElementById('status-message');
-            const select = document.getElementById('job-id');
+    function showFormError(text) {
+      msg.className = 'alert alert-bad';
+      msg.replaceChildren(L2E.el('strong', { text }));
+      msg.hidden = false;
+    }
 
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Submitting Application...";
-            msg.classList.add('hidden');
+    async function submitApplication(e) {
+      e.preventDefault();
+      msg.hidden = true;
+      const nameInput = $('candidate-name');
+      const emailInput = $('candidate-email');
+      const cvInput = $('candidate-cv');
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      const cv = cvInput.value.trim();
 
-            const name = document.getElementById('candidate-name').value.trim();
-            const email = document.getElementById('candidate-email').value.trim();
-            const cv = document.getElementById('candidate-cv').value.trim();
-            const jobTitle = select.options[select.selectedIndex].text;
+      // Check every field first, then send focus to the first problem.
+      const problems = [];
+      const jobBad = !select.value;
+      setError('f-job', select, jobBad); if (jobBad) problems.push(select);
+      const nameBad = !name;
+      setError('f-name', nameInput, nameBad); if (nameBad) problems.push(nameInput);
+      const emailBad = !emailInput.validity.valid || !email;
+      setError('f-email', emailInput, emailBad); if (emailBad) problems.push(emailInput);
+      let cvBad = false;
+      if (cv) {
+        try { if (!['http:', 'https:'].includes(new URL(cv).protocol)) cvBad = true; } catch (err) { cvBad = true; }
+      }
+      setError('f-cv', cvInput, cvBad); if (cvBad) problems.push(cvInput);
+      if (problems.length) {
+        showFormError(problems.length === 1 ? 'Please fix the box marked below.' : 'Please fix the ' + problems.length + ' boxes marked below.');
+        problems[0].focus();
+        return;
+      }
 
-            const payload = {
-                candidate_name: name,
-                email: email,
-                job_id: parseInt(select.value),
-                resume_url: cv || null
-            };
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+      const jobTitle = select.options[select.selectedIndex].text;
 
-            try {
-                const response = await fetch(`${API_BASE}/applications/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+      try {
+        const response = await L2E.request('/applications/', {
+          method: 'POST',
+          body: { candidate_name: name, email, job_id: parseInt(select.value, 10), resume_url: cv || null },
+          onSlow: () => { msg.className = 'alert alert-info'; msg.textContent = L2E.WAKE_NOTE; msg.hidden = false; }
+        });
+        if (response.status === 404) throw new Error('position-closed');
+        if (response.status === 422) throw new Error('invalid-details');
+        if (!response.ok) throw new Error('submission-failed');
 
-                if (!response.ok) throw new Error("Submission failed");
+        let created = {};
+        try { created = await response.json(); } catch (err) { /* no body: show the page without a code */ }
+        showTrackingCode(created.tracking_code);
+        $('success-name').textContent = name;
+        $('success-job').textContent = jobTitle;
+        $('success-email').textContent = email;
+        $('form-card').hidden = true;
+        $('success-card').hidden = false;
+        $('apply-form').reset();
+        $('success-heading').focus();
+        window.scrollTo(0, 0);
+      } catch (err) {
+        console.error('Submission error:', err);
+        showFormError(err.message === 'position-closed'
+          ? 'This job is no longer open. Please go back and choose another job.'
+          : err.message === 'invalid-details'
+            ? 'Some of your details were not accepted. Check your name, email and link, then try again.'
+            : "We couldn't send your application. Nothing was lost on your side. Wait a few seconds and press the button again.");
+        submitBtn.textContent = 'Send my application';
+        submitBtn.disabled = false;
+      }
+    }
 
-                // The server sends back the new application, including its tracking code
-                let created = {};
-                try { created = await response.json(); } catch (e) { /* no body: show the page without a code */ }
-                showTrackingCode(created.tracking_code);
+    function showTrackingCode(code) {
+      try { sessionStorage.removeItem('learn2earn-tracking-code'); } catch (err) { /* storage blocked */ }
+      if (!code) return;
+      $('success-code').textContent = code;
+      prepareTracking();
+      $('tracking-box').hidden = false;
+    }
 
-                document.getElementById('success-name').textContent = name;
-                document.getElementById('success-job').textContent = jobTitle;
-                document.getElementById('success-email').textContent = email;
-                document.getElementById('form-card').classList.add('hidden');
-                document.getElementById('success-card').classList.remove('hidden');
-                document.getElementById('apply-form').reset();
-            } catch (err) {
-                console.error("Submission error:", err);
-                msg.innerText = "Error submitting application. Please try again in a moment.";
-                msg.className = "mt-4 text-center text-sm font-medium text-rose-400 block";
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Submit Application";
-            }
-        }
+    // Keep the code out of the page address. The tracking page picks it up in this tab.
+    function prepareTracking() {
+      try { sessionStorage.setItem('learn2earn-tracking-code', $('success-code').textContent); } catch (err) { /* the person can copy it */ }
+    }
 
-        // Shows the tracking code on the success card (hidden if the server did not send one)
-        function showTrackingCode(code) {
-            if (!code) return;
-            document.getElementById('success-code').textContent = code;
-            document.getElementById('track-link').href = `/track?code=${encodeURIComponent(code)}`;
-            document.getElementById('tracking-box').classList.remove('hidden');
-        }
+    async function copyCode() {
+      const btn = $('copy-btn');
+      try {
+        await navigator.clipboard.writeText($('success-code').textContent);
+        btn.textContent = 'Copied';
+      } catch (err) {
+        btn.textContent = 'Press and hold the code to copy it';
+      }
+      setTimeout(() => { btn.textContent = 'Copy code'; }, 3000);
+    }
 
-        async function copyCode() {
-            const code = document.getElementById('success-code').textContent;
-            const btn = document.getElementById('copy-btn');
-            try {
-                await navigator.clipboard.writeText(code);
-                btn.textContent = 'Copied!';
-            } catch (err) {
-                // Clipboard blocked: the code is selectable, so ask the person to copy it by hand
-                btn.textContent = 'Select the code and copy it';
-            }
-            setTimeout(() => { btn.textContent = 'Copy code'; }, 2500);
-        }
-
-        document.addEventListener('DOMContentLoaded', loadJobs);
-    </script>
+    $('apply-form').addEventListener('submit', submitApplication);
+    $('copy-btn').addEventListener('click', copyCode);
+    $('track-link').addEventListener('click', prepareTracking);
+    // Clear a box's error as soon as the person starts fixing it.
+    [['f-name', 'candidate-name'], ['f-email', 'candidate-email'], ['f-cv', 'candidate-cv'], ['f-job', 'job-id']].forEach(([f, i]) =>
+      $(i).addEventListener('input', () => setError(f, $(i), false)));
+    loadJobs();
+  </script>
 </body>
 </html>

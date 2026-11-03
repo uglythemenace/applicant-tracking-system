@@ -1,106 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn2earn ATS - Open Positions</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open jobs | Learn2earn</title>
+  <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen p-4 sm:p-8 selection:bg-blue-600 selection:text-white">
+<body data-page="jobs">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header id="site-header" class="site-header"></header>
 
-    <div class="max-w-6xl mx-auto space-y-8">
+  <main id="main">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Open jobs</h1>
+        <p>Choose a job to read more, then select Apply. It takes about five minutes.</p>
+      </div>
 
-        <header class="flex flex-col sm:flex-row justify-between items-center bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-800 shadow-xl gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-black text-white tracking-tight">Learn2earn Careers</h1>
-                    <p class="text-xs text-gray-400">Open positions</p>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center justify-center gap-3">
-                <button onclick="goBack()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700 inline-flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
-                    Back
-                </button>
-                <a href="/" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-gray-700">Home</a>
-                <button onclick="fetchJobs()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Refresh Jobs</button>
-            </div>
-        </header>
-
-        <div class="bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-800 overflow-hidden">
-            <div class="p-6 border-b border-gray-800">
-                <h2 class="text-xl font-bold text-white">Open Positions</h2>
-                <p class="text-sm text-gray-400 mt-1">Pick a role and apply. We'll review your application and get back to you.</p>
-            </div>
-            <div id="jobs-container" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div class="filters">
+        <div class="field">
+          <label for="search">Search jobs</label>
+          <input id="search" type="search" placeholder="Type a job title or a word" autocomplete="off">
         </div>
+        <div class="field">
+          <label for="dept">Type of work</label>
+          <select id="dept"><option value="">All types of work</option></select>
+        </div>
+      </div>
+
+      <p class="count-line" id="count-line" role="status" aria-live="polite"></p>
+      <div id="notice" aria-live="polite"></div>
+      <div id="jobs-container" class="job-list" aria-busy="true">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
     </div>
+  </main>
 
-    <script>
-        const API_BASE_URL = 'https://applicant-tracking-system-tbaw.onrender.com';
+  <footer id="site-footer" class="site-footer"></footer>
+  <script src="/Frontend/static/script.js"></script>
+  <script>
+    const container = document.getElementById('jobs-container');
+    const notice = document.getElementById('notice');
+    const countLine = document.getElementById('count-line');
+    const search = document.getElementById('search');
+    const dept = document.getElementById('dept');
+    let allJobs = [];
 
-        // Go to the previous page, or home if there is no history
-        function goBack() {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = '/';
-            }
-        }
+    function jobCard(job) {
+      const desc = L2E.el('p', { class: 'job-desc', id: 'desc-' + job.id, text: job.description });
+      const more = L2E.el('button', { type: 'button', class: 'link-btn', 'aria-expanded': 'false', 'aria-controls': 'desc-' + job.id, text: 'Read the full description' });
+      more.addEventListener('click', () => {
+        const open = desc.classList.toggle('is-open');
+        more.setAttribute('aria-expanded', String(open));
+        more.textContent = open ? 'Show less' : 'Read the full description';
+      });
+      return L2E.el('div', { class: 'job' },
+        L2E.el('div', { class: 'job-head' },
+          L2E.el('h2', { text: job.title }),
+          L2E.el('span', { class: 'pill', text: job.department || 'General' })),
+        desc,
+        (job.description || '').length > 160 ? more : null,
+        L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), 'aria-label': 'Apply for ' + job.title, text: 'Apply for this job' })
+      );
+    }
 
-        // Stops job text from being treated as HTML code
-        function esc(value) {
-            return String(value ?? '').replace(/[&<>"']/g, c => (
-                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-            ));
-        }
+    function render() {
+      const q = search.value.trim().toLowerCase();
+      const d = dept.value;
+      const shown = allJobs.filter(j =>
+        (!d || (j.department || 'General') === d) &&
+        (!q || (j.title + ' ' + j.description + ' ' + (j.department || '')).toLowerCase().includes(q)));
+      container.replaceChildren();
+      container.setAttribute('aria-busy', 'false');
+      if (allJobs.length === 0) {
+        countLine.textContent = '';
+        container.append(L2E.el('div', { class: 'alert alert-info' },
+          L2E.el('strong', { text: 'No jobs are open right now.' }),
+          L2E.el('p', { text: 'New jobs are added often. Check back soon.' })));
+        return;
+      }
+      countLine.textContent = shown.length === 1 ? 'Showing 1 job' : 'Showing ' + shown.length + ' jobs';
+      if (shown.length === 0) {
+        container.append(L2E.el('div', { class: 'alert alert-info' },
+          L2E.el('strong', { text: 'No jobs match your search.' }),
+          L2E.el('p', { text: 'Try a shorter word, or choose "All types of work".' })));
+        return;
+      }
+      shown.forEach(j => container.append(jobCard(j)));
+    }
 
-        async function fetchJobs() {
-            const container = document.getElementById('jobs-container');
-            container.innerHTML = '<p class="text-gray-400 text-sm py-4">Loading open positions...</p>';
+    async function load() {
+      notice.replaceChildren();
+      container.setAttribute('aria-busy', 'true');
+      container.replaceChildren(L2E.el('div', { class: 'skeleton' }), L2E.el('div', { class: 'skeleton' }), L2E.el('div', { class: 'skeleton' }));
+      try {
+        allJobs = await L2E.loadOpenJobs(() => {
+          notice.replaceChildren(L2E.el('div', { class: 'alert alert-info', text: L2E.WAKE_NOTE }));
+        });
+        notice.replaceChildren();
+        const names = [...new Set(allJobs.map(j => j.department || 'General'))].sort();
+        dept.replaceChildren(L2E.el('option', { value: '', text: 'All types of work' }), ...names.map(n => L2E.el('option', { value: n, text: n })));
+        render();
+      } catch (err) {
+        container.replaceChildren();
+        container.setAttribute('aria-busy', 'false');
+        const retry = L2E.el('button', { type: 'button', class: 'btn btn-primary', text: 'Try again' });
+        retry.addEventListener('click', load);
+        notice.replaceChildren(L2E.el('div', { class: 'alert alert-warn' },
+          L2E.el('strong', { text: "We couldn't load the jobs." }),
+          L2E.el('p', { text: 'Your internet may be down, or the server may still be waking up. Wait a few seconds, then try again.' }),
+          retry));
+      }
+    }
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/jobs/?status=approved`);
-                if (!response.ok) throw new Error('Failed to fetch jobs');
-                const data = await response.json();
-                renderJobs(Array.isArray(data) ? data : (data.jobs || []));
-            } catch (error) {
-                console.error('Error fetching jobs:', error);
-                container.innerHTML = '<p class="text-red-400 text-sm py-4">Could not load jobs. The server may be waking up. Wait a moment and click Refresh Jobs.</p>';
-            }
-        }
-
-        function renderJobs(jobs) {
-            const container = document.getElementById('jobs-container');
-            container.innerHTML = '';
-
-            if (jobs.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm py-4">No open positions right now. Please check back soon.</p>';
-                return;
-            }
-
-            jobs.forEach(job => {
-                const card = document.createElement('div');
-                card.className = 'border border-gray-800 rounded-xl p-5 bg-gray-950 hover:border-gray-700 transition flex flex-col';
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-3 gap-3">
-                        <h3 class="font-bold text-base text-white">${esc(job.title)}</h3>
-                        <span class="text-xs bg-blue-950 text-blue-400 border border-blue-900/50 font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap">${esc(job.department || 'General')}</span>
-                    </div>
-                    <p class="text-sm text-gray-400 whitespace-pre-line leading-relaxed flex-1">${esc(job.description)}</p>
-                    <a href="/apply?job=${encodeURIComponent(job.id)}" class="mt-5 text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/20 transition">Apply Now</a>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', fetchJobs);
-    </script>
+    search.addEventListener('input', render);
+    dept.addEventListener('change', render);
+    load();
+  </script>
 </body>
 </html>
