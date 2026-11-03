@@ -1,7 +1,8 @@
 fastapi
 uvicorn
 supabase>=2.20
-pydantic
+pydantic>=2,<3
+email-validator
 python-dotenv
 resend
 twilio>=9,<10
