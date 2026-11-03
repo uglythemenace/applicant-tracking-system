@@ -14,17 +14,17 @@ A simple careers site and FastAPI backend for posting jobs, receiving applicatio
 
 ## Important: deploy the frontend and backend together
 
-The tracking API changed from **GET** to **POST**. The old deployed frontend cannot track against the new backend, and the new frontend cannot track against the old backend. Deploy the backend and frontend close together and then test tracking; there can be a short interruption while the two deployments are updating. Other clients that call the old tracking endpoint must be updated too.
+The tracking API uses **POST** so the applicant's email and tracking code do not appear in the request URL. Deploy the backend and frontend close together; older deployed versions may not work with the updated tracking flow. Other clients that call the tracking endpoint must also use POST.
 
-Nothing in this copy deploys automatically. Review the changes, commit them to your GitHub repository, and let Render and Vercel deploy the updated commit (or deploy it through your normal process). These changes do not require a new database column.
+Nothing in this copy deploys automatically. Before deploying, run `Backend/migrations/20261103_add_application_phone.sql` in the Supabase SQL editor. It adds phone/text consent, records existing email and phone claims without deleting older applications, and installs database-side duplicate protection and cooldown storage. Then deploy the backend and frontend together. Set a strong `APPLICATION_COOLDOWN_SECRET` (or use the already required `ADMIN_API_KEY`) so the cooldown table stores keyed hashes rather than raw applicant identifiers. Application and status emails use Resend; configure `RESEND_API_KEY`, a verified `EMAIL_FROM` address, and `FRONTEND_URL`. Optional SMS uses Twilio; configure `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`. Applicants must explicitly opt in to texts. Twilio charges per message, and sender registration or recipient verification can be required by country/account type; see [Twilio's SMS setup guide](https://www.twilio.com/docs/messaging/tutorials/how-to-send-sms-messages). If email or SMS delivery is unavailable, the confirmation page still displays the tracking code.
 
 After deployment, verify that:
 
-1. The Render backend installs the updated `Backend/requirements.txt` and has `SUPABASE_URL`, `SUPABASE_KEY`, and a strong `ADMIN_API_KEY` configured. **Never put these real values in the frontend or commit them to GitHub.**
+1. The Render backend installs the updated `Backend/requirements.txt` and has `SUPABASE_URL`, `SUPABASE_KEY`, a strong `ADMIN_API_KEY`, `APPLICATION_COOLDOWN_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, and `FRONTEND_URL` configured. Add Twilio settings to enable SMS. **Never put these real values in the frontend or commit them to GitHub.**
 2. The Vercel project uses the repository root and serves `/Frontend/static/style.css` and `/Frontend/static/script.js` successfully.
 3. The jobs page shows only open jobs, and the admin page can also show closed jobs after signing in.
-4. In a **staging environment**, submit a test application, check its résumé link in admin, and use the tracking code to check its status.
-5. Check that `GET /jobs/` without an admin key does not return closed jobs and `GET /applications/` without a key returns 401.
+4. In a **staging environment**, submit a test application with email-only and text opt-in, confirm the tracking code delivery, and check the stored phone and consent in admin. Reusing either credential should be rejected; the fourth duplicate attempt should return a 10-minute cooldown.
+5. In staging, change an opted-in applicant to accepted and rejected and confirm email and SMS status notices; also check the tracking POST with the correct email and code shows the dashboard, a wrong pair returns 404, `GET /jobs/` without an admin key does not return closed jobs, and `GET /applications/` without a key returns 401.
 
 The frontend still points at your existing Render URL. Viewing or deploying it without changing that URL will use that backend. Do not submit fake applications to the live site; use a staging backend or the mock tests below.
 

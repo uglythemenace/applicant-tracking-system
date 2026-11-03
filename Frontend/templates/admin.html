@@ -65,6 +65,7 @@
             <thead>
               <tr>
                 <th scope="col">Applicant</th>
+                <th scope="col">Phone</th>
                 <th scope="col">Job</th>
                 <th scope="col">Resume</th>
                 <th scope="col">Status</th>
@@ -72,7 +73,7 @@
               </tr>
             </thead>
             <tbody id="applicant-table-body">
-              <tr><td colspan="5" class="empty">Loading applications&hellip;</td></tr>
+              <tr><td colspan="6" class="empty">Loading applications&hellip;</td></tr>
             </tbody>
           </table>
         </div>
@@ -230,12 +231,12 @@
       $('accepted-count').textContent = applicants.filter(a => a.status === 'accepted').length;
       tbody.replaceChildren();
       if (total === 0) {
-        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '5', class: 'empty', text: 'No applicants submitted yet.' })));
+        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No applicants submitted yet.' })));
         return;
       }
       const shown = applicants.filter(a => filter === 'all' || a.status === filter);
       if (shown.length === 0) {
-        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '5', class: 'empty', text: 'No one is in this group right now.' })));
+        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No one is in this group right now.' })));
         return;
       }
       shown.forEach(app => {
@@ -244,6 +245,9 @@
         tbody.append(L2E.el('tr', {},
           L2E.el('td', { 'data-label': 'Applicant' },
             L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }), app.created_at ? L2E.el('span', { class: 'sub', text: 'Applied ' + L2E.formatDate(app.created_at) }) : null)),
+          L2E.el('td', { 'data-label': 'Phone' },
+            app.phone_number || 'Not provided',
+            app.phone_number && app.sms_updates_consent ? L2E.el('span', { class: 'sub', text: 'Opted in to texts' }) : null),
           L2E.el('td', { 'data-label': 'Job', text: job ? job.title : 'Job #' + app.job_id }),
           L2E.el('td', { 'data-label': 'Resume' }, resumeCell(app)),
           L2E.el('td', { 'data-label': 'Status' }, L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label })),
@@ -259,7 +263,7 @@
     async function loadApplicants() {
       const key = L2E.currentKey();
       try {
-        const res = await L2E.adminFetch('/applications/', { onSlow: () => { $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '5', class: 'empty', text: L2E.WAKE_NOTE }))); } });
+        const res = await L2E.adminFetch('/applications/', { onSlow: () => { $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: L2E.WAKE_NOTE }))); } });
         if (res.status === 401 || !L2E.keyIsCurrent(key)) return;
         if (!res.ok) throw new Error('Failed to load applicants');
         const data = await res.json();
@@ -271,7 +275,7 @@
         console.error('Error fetching applicants:', error);
         if (!L2E.keyIsCurrent(key)) return;
         for (const id of ['total-count', 'pending-count', 'accepted-count']) $(id).textContent = '—';
-        $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '5', class: 'empty', text: "Couldn't load applications. Press \"Refresh the lists\" in a moment." })));
+        $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: "Couldn't load applications. Press \"Refresh the lists\" in a moment." })));
       }
     }
 

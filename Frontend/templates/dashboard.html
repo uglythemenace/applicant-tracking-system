@@ -86,7 +86,7 @@
       apps.slice().sort((a, b) => b.id - a.id).slice(0, 8).forEach(app => {
         const info = L2E.statusInfo(app.status);
         tbody.append(L2E.el('tr', {},
-          L2E.el('td', { 'data-label': 'Applicant' }, L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }))),
+          L2E.el('td', { 'data-label': 'Applicant' }, L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }), app.phone_number ? L2E.el('span', { class: 'sub', text: app.phone_number }) : null)),
           L2E.el('td', { 'data-label': 'Applied', text: app.created_at ? L2E.formatDate(app.created_at) : '' }),
           L2E.el('td', { 'data-label': 'Status' }, L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label }))));
       });

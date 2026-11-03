@@ -16,8 +16,9 @@
       <!-- The application form -->
       <div id="form-card">
         <div class="page-head">
+          <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> TAKE THE NEXT STEP</p>
           <h1>Apply for a job</h1>
-          <p>It takes about five minutes. Fields marked required must be filled in.</p>
+          <p>Share a few details with the hiring team. It takes about five minutes.</p>
         </div>
 
         <div id="job-notice" role="status"></div>
@@ -39,16 +40,27 @@
 
           <div class="field" id="f-email">
             <label for="candidate-email">Your email address (required)</label>
-            <span class="hint" id="h-email">We will use this to contact you. You will also need it to check your application.</span>
+            <span class="hint" id="h-email">Use an email address you have not used for another application. We will use it to contact you and check your status.</span>
             <input type="email" id="candidate-email" autocomplete="email" inputmode="email" maxlength="254" placeholder="For example: maria@example.com" required aria-describedby="h-email e-email">
             <p class="error-text" id="e-email">Enter an email address like name@example.com.</p>
           </div>
 
+          <div class="field" id="f-phone">
+            <label for="candidate-phone">Phone number (optional)</label>
+            <span class="hint" id="h-phone">Each phone number can be used once. For text updates, include your country code, for example +1 555 123 4567.</span>
+            <input type="tel" id="candidate-phone" autocomplete="tel" inputmode="tel" maxlength="30" placeholder="+1 555 123 4567" aria-describedby="h-phone e-phone">
+            <label class="sms-consent" for="sms-updates-opt-in">
+              <input type="checkbox" id="sms-updates-opt-in">
+              <span>Text me my tracking code and updates if my application is accepted or rejected. Message and data rates may apply. Reply STOP to stop texts.</span>
+            </label>
+            <p class="error-text" id="e-phone">Enter a valid international number starting with +, or leave it blank.</p>
+          </div>
+
           <div class="field" id="f-cv">
             <label for="candidate-cv">Link to your resume (optional)</label>
-            <span class="hint" id="h-cv">If your resume is online, such as on Google Drive or LinkedIn, paste the link here. You can skip this.</span>
-            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="Starts with https://" aria-describedby="h-cv e-cv">
-            <p class="error-text" id="e-cv">The link must start with http:// or https://. Or leave this box empty.</p>
+            <span class="hint" id="h-cv">Paste a link to your resume, such as a Google Drive or LinkedIn link. You can leave this blank.</span>
+            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="Paste your resume link (optional)" aria-describedby="h-cv e-cv">
+            <p class="error-text" id="e-cv">Enter a link to your online resume, not an email address, or leave this box empty.</p>
           </div>
 
           <div id="status-message" role="alert" hidden></div>
@@ -67,6 +79,9 @@
           </div>
           <p>Thank you, <strong id="success-name"></strong>. Your application for <strong id="success-job"></strong> is waiting for review. We will contact you at <strong id="success-email"></strong>.</p>
         </div>
+
+        <p id="email-delivery-message" class="alert" role="status" hidden></p>
+        <p id="sms-delivery-message" class="alert" role="status" hidden></p>
 
         <!-- Tracking code: only shown when the server sends one back -->
         <div id="tracking-box" class="ticket" hidden>
@@ -150,9 +165,12 @@
       msg.hidden = true;
       const nameInput = $('candidate-name');
       const emailInput = $('candidate-email');
+      const phoneInput = $('candidate-phone');
+      const smsOptIn = $('sms-updates-opt-in');
       const cvInput = $('candidate-cv');
       const name = nameInput.value.trim();
       const email = emailInput.value.trim();
+      const phone = phoneInput.value.trim();
       const cv = cvInput.value.trim();
 
       // Check every field first, then send focus to the first problem.
@@ -163,9 +181,15 @@
       setError('f-name', nameInput, nameBad); if (nameBad) problems.push(nameInput);
       const emailBad = !emailInput.validity.valid || !email;
       setError('f-email', emailInput, emailBad); if (emailBad) problems.push(emailInput);
+      const phoneDigits = phone.replace(/\D/g, '');
+      const phoneBad = smsOptIn.checked && !phone || !!phone && (!/^\+[0-9().\-\s]{8,30}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15);
+      setError('f-phone', phoneInput, phoneBad); if (phoneBad) problems.push(phoneInput);
       let cvBad = false;
       if (cv) {
-        try { if (!['http:', 'https:'].includes(new URL(cv).protocol)) cvBad = true; } catch (err) { cvBad = true; }
+        try {
+          const resumeUrl = new URL(cv);
+          cvBad = !['http:', 'https:'].includes(resumeUrl.protocol) || /^[^/]+@[^/]+$/.test(resumeUrl.host);
+        } catch (err) { cvBad = true; }
       }
       setError('f-cv', cvInput, cvBad); if (cvBad) problems.push(cvInput);
       if (problems.length) {
@@ -181,12 +205,15 @@
       try {
         const response = await L2E.request('/applications/', {
           method: 'POST',
-          body: { candidate_name: name, email, job_id: parseInt(select.value, 10), resume_url: cv || null },
+          body: { candidate_name: name, email, phone_number: phone ? '+' + phoneDigits : undefined, sms_updates_consent: smsOptIn.checked, job_id: parseInt(select.value, 10), resume_url: cv || null },
           onSlow: () => { msg.className = 'alert alert-info'; msg.textContent = L2E.WAKE_NOTE; msg.hidden = false; }
         });
-        if (response.status === 404) throw new Error('position-closed');
-        if (response.status === 422) throw new Error('invalid-details');
-        if (!response.ok) throw new Error('submission-failed');
+        if (!response.ok) {
+          const error = new Error('http-error');
+          error.status = response.status;
+          error.retryAfterSeconds = Number(response.headers.get('Retry-After')) || 0;
+          throw error;
+        }
 
         let created = {};
         try { created = await response.json(); } catch (err) { /* no body: show the page without a code */ }
@@ -194,18 +221,54 @@
         $('success-name').textContent = name;
         $('success-job').textContent = jobTitle;
         $('success-email').textContent = email;
+        const emailNotice = $('email-delivery-message');
+        const emailSent = created.tracking_email_sent;
+        emailNotice.className = 'alert ' + (emailSent === true ? 'alert-good' : emailSent === false ? 'alert-warn' : 'alert-info');
+        emailNotice.textContent = emailSent === true
+          ? 'A copy of your tracking code was sent to ' + email + '. If it is not in your inbox shortly, check your spam folder.'
+          : emailSent === false
+            ? 'We could not confirm delivery of your tracking code to ' + email + '. Your code is shown below; save it now so you can check your application.'
+            : 'Your application was submitted, but this server did not report email delivery. Save your tracking code below and check your inbox and spam folder for a copy.';
+        emailNotice.hidden = false;
+        const smsNotice = $('sms-delivery-message');
+        if (smsOptIn.checked) {
+          const smsQueued = created.tracking_sms_queued;
+          smsNotice.className = 'alert ' + (smsQueued === true ? 'alert-good' : smsQueued === false ? 'alert-warn' : 'alert-info');
+          smsNotice.textContent = smsQueued === true
+            ? 'A text with your tracking code was queued for ' + phone + '.'
+            : smsQueued === false
+              ? 'We could not queue a text to ' + phone + '. Your tracking code is shown below, and email updates will still be sent.'
+              : 'The server did not confirm whether a text was sent. Your tracking code is shown below; check your phone and email for updates.';
+          smsNotice.hidden = false;
+        } else {
+          smsNotice.hidden = true;
+        }
         $('form-card').hidden = true;
         $('success-card').hidden = false;
         $('apply-form').reset();
         $('success-heading').focus();
         window.scrollTo(0, 0);
       } catch (err) {
-        console.error('Submission error:', err);
-        showFormError(err.message === 'position-closed'
-          ? 'This job is no longer open. Please go back and choose another job.'
-          : err.message === 'invalid-details'
-            ? 'Some of your details were not accepted. Check your name, email and link, then try again.'
-            : "We couldn't send your application. Nothing was lost on your side. Wait a few seconds and press the button again.");
+        const status = Number.isInteger(err.status) ? err.status : null;
+        console.error('Application submission failed' + (status ? ' (HTTP ' + status + ')' : ' (' + (err.name || 'network error') + ')'));
+        const errorMessage = status === 404
+          ? 'This job is no longer open. Go back to the jobs page and choose another role.'
+          : status === 409
+            ? 'This email address or phone number has already been used for an application. Each can only be used once. If you have already applied, use your tracking code to check your status.'
+            : status === 429 && err.retryAfterSeconds
+              ? 'For safety, repeat attempts with details already used are paused. Please wait about ' + Math.ceil(err.retryAfterSeconds / 60) + ' minutes before trying again.'
+              : status === 429
+                ? 'Too many attempts have been made. Please wait a few minutes before trying again.'
+          : status === 400 || status === 422
+            ? 'The application service rejected some details. Check your name, email, phone number and resume link, then try again.'
+            : status && status >= 500
+              ? 'The application service had a server error (HTTP ' + status + '). We could not confirm whether your application was saved. Check with the hiring team before trying again.'
+              : status
+                ? 'The application service returned an unexpected error (HTTP ' + status + '). Check with the hiring team before trying again.'
+                : err.name === 'AbortError'
+                  ? 'The request timed out. Your application may still have been received. Check with the hiring team before trying again.'
+                  : 'The page could not reach the application service. Your application may still have been received. Check with the hiring team before trying again.';
+        showFormError(errorMessage);
         submitBtn.textContent = 'Send my application';
         submitBtn.disabled = false;
       }
@@ -239,8 +302,9 @@
     $('copy-btn').addEventListener('click', copyCode);
     $('track-link').addEventListener('click', prepareTracking);
     // Clear a box's error as soon as the person starts fixing it.
-    [['f-name', 'candidate-name'], ['f-email', 'candidate-email'], ['f-cv', 'candidate-cv'], ['f-job', 'job-id']].forEach(([f, i]) =>
+    [['f-name', 'candidate-name'], ['f-email', 'candidate-email'], ['f-phone', 'candidate-phone'], ['f-cv', 'candidate-cv'], ['f-job', 'job-id']].forEach(([f, i]) =>
       $(i).addEventListener('input', () => setError(f, $(i), false)));
+    $('sms-updates-opt-in').addEventListener('change', () => setError('f-phone', $('candidate-phone'), false));
     loadJobs();
   </script>
 </body>

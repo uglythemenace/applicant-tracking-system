@@ -12,12 +12,14 @@
 
   <main id="main">
     <div class="wrap wrap-narrow">
-      <div class="page-head">
-        <h1>Check my application</h1>
-        <p>Enter the email you applied with and the tracking code we gave you after you applied.</p>
-      </div>
+      <section id="lookup-card">
+        <div class="page-head">
+          <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> YOUR APPLICATION, AT A GLANCE</p>
+          <h1>Check your application</h1>
+          <p>Enter the email address you applied with and the tracking code from your confirmation email.</p>
+        </div>
 
-      <form id="track-form" class="panel" novalidate>
+        <form id="track-form" class="panel" novalidate>
         <div class="field">
           <label for="email">Your email address</label>
           <input id="email" type="email" required autocomplete="email" inputmode="email" placeholder="For example: maria@example.com">
@@ -28,68 +30,64 @@
           <input id="code" type="text" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="L2E-XXXXXXXX" aria-describedby="h-code" style="text-transform:uppercase;letter-spacing:0.05em;font-family:var(--mono)">
         </div>
         <button id="submit-btn" type="submit" class="btn btn-primary btn-block">Check my application</button>
-      </form>
+        </form>
 
-      <div id="result" role="status" aria-live="polite" aria-atomic="true"></div>
-      <p class="muted" style="margin-top:24px">Lost your code? We cannot look it up for you yet. Contact the hiring team at the company that posted the job.</p>
+        <div id="lookup-message" role="status" aria-live="polite" aria-atomic="true"></div>
+        <p class="muted" style="margin-top:24px">Lost your code? Contact the hiring team at the company that posted the job. We can’t look it up without the code.</p>
+      </section>
+      <section id="status-dashboard" class="status-dashboard" aria-live="polite" hidden></section>
     </div>
   </main>
 
   <footer id="site-footer" class="site-footer"></footer>
   <script src="/Frontend/static/script.js"></script>
   <script>
-    // The steps an application moves through, in order.
-    const STEPS = ['Application received', 'Being reviewed', 'Interview stage', 'Decision made'];
-
-    // Turns the saved status into a step and a plain-language message.
-    function describeStatus(raw) {
-      const s = String(raw || '').trim().toLowerCase();
-      if (['accepted', 'hired', 'approved'].includes(s))
-        return { step: 3, tone: 'good', decision: 'Accepted', title: 'Good news: you have been accepted.', message: 'The hiring team will email you with the next steps. Watch your inbox, and your spam folder too.' };
-      if (['offer', 'offered'].includes(s))
-        return { step: 3, tone: 'good', decision: 'Offer made', title: 'You have an offer.', message: 'The hiring team will email you with the next steps.' };
-      if (['rejected', 'declined', 'not selected', 'unsuccessful'].includes(s))
-        return { step: 3, tone: 'bad', decision: 'Not selected', title: 'Not selected this time', message: 'Thank you for applying. The team could not move your application forward. We hope you will apply for other jobs.' };
-      if (['interview', 'interviewing', 'shortlisted', 'interview scheduled'].includes(s))
-        return { step: 2, tone: 'info', title: 'Interview stage', message: 'You made the short list. Watch your email for interview details.' };
-      if (['reviewing', 'under review', 'in review', 'review'].includes(s))
-        return { step: 1, tone: 'info', title: 'Being reviewed', message: 'The hiring team is looking at your application now. You do not need to do anything.' };
-      if (['pending', 'submitted', 'received', 'new', ''].includes(s))
-        return { step: 0, tone: 'warn', title: 'Waiting for review', message: 'We have your application. The hiring team has not looked at it yet. You do not need to do anything.' };
-      return { step: null, tone: 'info', title: String(raw), message: 'This is the latest update on your application.' };
-    }
-
-    const result = document.getElementById('result');
+    const result = document.getElementById('lookup-message');
 
     function showAlert(tone, title, text, extra) {
       result.replaceChildren(L2E.el('div', { class: 'alert alert-' + tone }, L2E.el('strong', { text: title }), text ? L2E.el('p', { text }) : null, extra));
     }
 
     function renderResult(data) {
-      const info = describeStatus(data.status);
-      const labels = STEPS.map((label, i) => (i === 3 && info.step === 3 ? info.decision : label));
-
-      // The server only reports the current stage, not the history, so only the
-      // current stage is marked. We never claim an earlier stage was completed.
-      const stages = labels.map((label, i) => {
-        const current = i === info.step;
-        return L2E.el('li', current ? { 'aria-current': 'step' } : {},
-          L2E.el('span', { class: 'dot' + (current ? ' is-current is-' + (info.tone === 'warn' ? 'info' : info.tone) : ''), 'aria-hidden': 'true' }),
-          L2E.el('p', { class: 'stage-label' }, label, current ? L2E.el('span', { class: 'sr-only', text: ' (current stage)' }) : null));
+      const raw = String(data.status || '').trim().toLowerCase();
+      const accepted = ['accepted', 'hired', 'approved', 'offer', 'offered'].includes(raw);
+      const rejected = ['rejected', 'declined', 'not selected', 'unsuccessful'].includes(raw);
+      const state = accepted ? 'accepted' : rejected ? 'rejected' : 'awaiting';
+      const title = accepted ? 'Accepted' : rejected ? 'Rejected' : 'Awaiting review';
+      const message = accepted
+        ? 'The hiring team has accepted your application. They will contact you with the next steps.'
+        : rejected
+          ? 'The hiring team has decided not to move forward with this application. Thank you for your interest.'
+          : raw === 'interview' || raw === 'interviewing'
+            ? 'Your application is moving through the review process. Watch your email for updates from the hiring team.'
+            : 'Your application is with the hiring team. We’ll show an update here when its status changes.';
+      const dashboard = document.getElementById('status-dashboard');
+      const statusCard = L2E.el('div', { class: 'status-hero status-' + state },
+        L2E.el('span', { class: 'status-orb', 'aria-hidden': 'true' }),
+        L2E.el('div', {},
+          L2E.el('p', { class: 'status-kicker', text: 'APPLICATION STATUS' }),
+          L2E.el('h1', { id: 'status-title', text: title }),
+          L2E.el('p', { class: 'status-summary', text: message })));
+      const details = L2E.el('div', { class: 'status-details panel' },
+        L2E.el('div', { class: 'detail-block' }, L2E.el('span', { class: 'detail-label', text: 'POSITION' }), L2E.el('h2', { text: data.job_title || 'Your application' })),
+        L2E.el('div', { class: 'detail-block' }, L2E.el('span', { class: 'detail-label', text: 'SUBMITTED' }), L2E.el('p', { text: data.applied_at ? L2E.formatDate(data.applied_at) : 'Date unavailable' })));
+      const nextStep = L2E.el('div', { class: 'next-step' },
+        L2E.el('span', { class: 'next-step-icon', 'aria-hidden': 'true', text: accepted ? '✓' : rejected ? '↗' : '…' }),
+        L2E.el('div', {},
+          L2E.el('strong', { text: accepted ? 'What happens next' : rejected ? 'Keep exploring' : 'Nothing else needed right now' }),
+          L2E.el('p', { text: accepted ? 'Check your inbox for a message from the hiring team.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'We’ll contact you at the email address on your application.' })));
+      const another = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Check another application' });
+      another.addEventListener('click', () => {
+        dashboard.hidden = true;
+        document.getElementById('lookup-card').hidden = false;
+        document.getElementById('track-form').reset();
+        result.replaceChildren();
+        document.getElementById('email').focus();
       });
-
-      result.replaceChildren(L2E.el('div', { class: 'panel stack', style: 'margin-top:24px' },
-        L2E.el('div', {},
-          L2E.el('p', { class: 'muted', style: 'margin:0', text: 'You applied for' }),
-          L2E.el('h2', { style: 'margin:0', text: data.job_title }),
-          data.applied_at ? L2E.el('p', { class: 'muted', style: 'margin:4px 0 0', text: 'Sent on ' + L2E.formatDate(data.applied_at) }) : null),
-        L2E.el('div', { class: 'alert alert-' + info.tone, style: 'margin:0' },
-          L2E.el('strong', { text: info.title }), L2E.el('p', { text: info.message })),
-        L2E.el('div', {},
-          L2E.el('p', { class: 'muted', text: 'Where you are in the process. Some stages may be skipped.' }),
-          L2E.el('ol', { class: 'stages' }, stages))
-      ));
-      result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      dashboard.replaceChildren(statusCard, details, nextStep, L2E.el('div', { class: 'status-actions' }, another));
+      document.getElementById('lookup-card').hidden = true;
+      dashboard.hidden = false;
+      dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async function checkStatus(event) {

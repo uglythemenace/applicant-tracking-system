@@ -12,6 +12,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allows GET, POST, PATCH, etc.
     allow_headers=["*"],
+    expose_headers=["Retry-After"],
 )
 
 app.include_router(jobs_router)

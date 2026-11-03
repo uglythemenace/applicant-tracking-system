@@ -13,24 +13,29 @@
   <main id="main">
     <div class="wrap">
       <div class="page-head">
-        <h1>Open jobs</h1>
-        <p>Choose a job to read more, then select Apply. It takes about five minutes.</p>
+        <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> CAREER OPPORTUNITIES</p>
+        <h1>Find a role that moves you forward.</h1>
+        <p>Explore current openings, find the kind of work that fits, and apply in a few minutes.</p>
       </div>
 
-      <div class="filters">
-        <div class="field">
-          <label for="search">Search jobs</label>
-          <input id="search" type="search" placeholder="Type a job title or a word" autocomplete="off">
+      <section class="job-filter-panel panel" aria-labelledby="job-search-title">
+        <h2 id="job-search-title">Find a job</h2>
+        <p class="job-filter-help">Type a job title or a word that describes the work. You can also choose a job area. Leave the search empty to see every opening.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="search">Search by job title or keyword</label>
+            <input id="search" type="search" placeholder="For example: developer or product" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="dept">Job area (optional)</label>
+            <select id="dept"><option value="">All job areas</option></select>
+          </div>
         </div>
-        <div class="field">
-          <label for="dept">Type of work</label>
-          <select id="dept"><option value="">All types of work</option></select>
-        </div>
-      </div>
+      </section>
 
       <p class="count-line" id="count-line" role="status" aria-live="polite"></p>
       <div id="notice" aria-live="polite"></div>
-      <div id="jobs-container" class="job-list" aria-busy="true">
+      <div id="jobs-container" class="job-list" aria-label="Open positions" aria-busy="true">
         <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       </div>
     </div>
@@ -54,13 +59,16 @@
         more.setAttribute('aria-expanded', String(open));
         more.textContent = open ? 'Show less' : 'Read the full description';
       });
-      return L2E.el('div', { class: 'job' },
+      return L2E.el('article', { class: 'job' },
         L2E.el('div', { class: 'job-head' },
-          L2E.el('h2', { text: job.title }),
-          L2E.el('span', { class: 'pill', text: job.department || 'General' })),
+          L2E.el('span', { class: 'pill', text: job.department || 'General' }),
+          L2E.el('span', { class: 'job-open', text: 'Open position' })),
+        L2E.el('h2', { class: 'job-title', text: job.title }),
         desc,
         (job.description || '').length > 160 ? more : null,
-        L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), 'aria-label': 'Apply for ' + job.title, text: 'Apply for this job' })
+        L2E.el('div', { class: 'job-footer' },
+          L2E.el('span', { class: 'job-footer-note', text: 'A few minutes to apply' }),
+          L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), 'aria-label': 'Apply for ' + job.title, text: 'Apply for this role' }))
       );
     }
 
@@ -79,11 +87,11 @@
           L2E.el('p', { text: 'New jobs are added often. Check back soon.' })));
         return;
       }
-      countLine.textContent = shown.length === 1 ? 'Showing 1 job' : 'Showing ' + shown.length + ' jobs';
+      countLine.textContent = shown.length === 1 ? '1 open role' : shown.length + ' open roles';
       if (shown.length === 0) {
         container.append(L2E.el('div', { class: 'alert alert-info' },
           L2E.el('strong', { text: 'No jobs match your search.' }),
-          L2E.el('p', { text: 'Try a shorter word, or choose "All types of work".' })));
+          L2E.el('p', { text: 'Try a different word or choose “All job areas” to see more openings.' })));
         return;
       }
       shown.forEach(j => container.append(jobCard(j)));
@@ -99,7 +107,7 @@
         });
         notice.replaceChildren();
         const names = [...new Set(allJobs.map(j => j.department || 'General'))].sort();
-        dept.replaceChildren(L2E.el('option', { value: '', text: 'All types of work' }), ...names.map(n => L2E.el('option', { value: n, text: n })));
+        dept.replaceChildren(L2E.el('option', { value: '', text: 'All job areas' }), ...names.map(n => L2E.el('option', { value: n, text: n })));
         render();
       } catch (err) {
         container.replaceChildren();

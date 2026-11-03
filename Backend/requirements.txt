@@ -4,3 +4,4 @@ supabase>=2.20
 pydantic
 python-dotenv
 resend
+twilio>=9,<10
