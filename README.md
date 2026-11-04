@@ -83,3 +83,4 @@ All styling is in one plain file, `Frontend/static/style.css`, and all shared be
 - Check log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.
 - Add real job details such as location, employment type and requirements; don't publish placeholder roles.
 - `/dashboard` is now a staff-only summary page that uses the same sign-in as `/admin`. `/post-job` redirects to `/admin`, where jobs are posted.
+- The public navigation does not display the staff admin sign-in; staff can open `/admin` directly.

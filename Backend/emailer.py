@@ -44,14 +44,14 @@ def send_application_received(to: str, name: str, job_title: str, code: str) -> 
     job_title = html.escape(job_title)
     track_url = f"{FRONTEND_URL}/track"
     body = _wrap(f"""
-      <h2>We got your application</h2>
-      <p>Hi {name}, thanks for applying for <b>{job_title}</b>.</p>
+      <h2>Application submitted successfully</h2>
+      <p>Hi {name}, your application for <b>{job_title}</b> has been received and is waiting for review.</p>
       <p>Your tracking code is:</p>
       <p style="font-size:24px;font-weight:bold;letter-spacing:2px">{html.escape(code)}</p>
       <p>Use this code and your email address to check your status any time:</p>
       <p><a href="{track_url}">{track_url}</a></p>
     """)
-    return _send(to, f"Application received: {job_title}", body)
+    return _send(to, f"Application submitted successfully: {job_title}", body)
 
 
 def _send_sms(to: str, body: str) -> bool:

@@ -101,7 +101,6 @@ const L2E = (() => {
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
-              <a class="nav-admin" href="/admin"${current("admin")}>Admin</a>
              </nav>
            </div>`;
     }
@@ -113,7 +112,6 @@ const L2E = (() => {
           <nav aria-label="Footer">
             <a href="/jobs">Jobs</a>
             <a href="/track">Check my application</a>
-            <a href="/admin">Admin</a>
           </nav>
         </div>`;
     }

@@ -632,18 +632,6 @@ body[data-staff="true"] .page-head { padding-top: 44px; }
   border: 1px solid #ffffff24;
   box-shadow: 0 6px 16px #10473730;
 }
-.nav .nav-admin {
-  min-height: 40px;
-  padding: 0 18px;
-  color: #fff;
-  background: var(--brand);
-  font-weight: 750;
-}
-.nav .nav-admin:hover,
-.nav .nav-admin[aria-current="page"] {
-  color: #fff;
-  background: var(--brand-dark);
-}
 .hero { background: linear-gradient(118deg, #12372d 0%, #173629 58%, #1b4937 100%); }
 .hero::before { background: #c3ef85; }
 .hero .btn-primary { color: #173629; }
@@ -652,5 +640,4 @@ body[data-staff="true"] .page-head { padding-top: 44px; }
   .site-header .wrap { gap: 2px 8px; }
   .nav { gap: 2px; }
   .nav a, .nav button { padding: 0 9px; font-size: .8rem; }
-  .nav .nav-admin { min-height: 36px; padding: 0 12px; }
 }
