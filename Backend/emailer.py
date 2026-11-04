@@ -1,10 +1,23 @@
 import os
 import html
+import smtplib
+import ssl
+from email.message import EmailMessage
+from email.utils import formataddr
 import resend
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
+EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "resend").strip().lower()
 FROM_ADDRESS = os.environ.get("EMAIL_FROM", "").strip()
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
+SMTP_APP_PASSWORD = os.environ.get("SMTP_APP_PASSWORD", "").replace(" ", "")
+SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Learn2earn Careers").strip()
+try:
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+except ValueError:
+    SMTP_PORT = 587
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL", "https://applicant-tracking-system-frontend.vercel.app"
 )
@@ -15,6 +28,11 @@ TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
 def _send(to: str, subject: str, body_html: str) -> bool:
     # Email problems must never break an application or a status change.
+    if EMAIL_PROVIDER == "smtp":
+        return _send_smtp(to, subject, body_html)
+    if EMAIL_PROVIDER != "resend":
+        print("Email skipped: EMAIL_PROVIDER must be 'resend' or 'smtp'")
+        return False
     if not resend.api_key:
         print("Email skipped: RESEND_API_KEY is not set")
         return False
@@ -28,6 +46,41 @@ def _send(to: str, subject: str, body_html: str) -> bool:
         return True
     except Exception as e:
         print("Email failed:", e)
+        return False
+
+
+def _send_smtp(to: str, subject: str, body_html: str) -> bool:
+    if not SMTP_USERNAME or not SMTP_APP_PASSWORD:
+        print("Email skipped: SMTP_USERNAME and SMTP_APP_PASSWORD are required for SMTP")
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = formataddr((SMTP_FROM_NAME, SMTP_USERNAME))
+    message["To"] = to
+    message.set_content("This message contains your Learn2earn application update. Please view it in an HTML-capable email app.")
+    message.add_alternative(body_html, subtype="html")
+
+    try:
+        context = ssl.create_default_context()
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=25) as server:
+                server.login(SMTP_USERNAME, SMTP_APP_PASSWORD)
+                refused = server.send_message(message)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=25) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(SMTP_USERNAME, SMTP_APP_PASSWORD)
+                refused = server.send_message(message)
+        if refused:
+            print("SMTP email was refused by the mail server")
+            return False
+        return True
+    except Exception:
+        # Never log applicant addresses or SMTP credentials.
+        print("SMTP email failed; check Gmail SMTP settings and the Render logs")
         return False
 
 
