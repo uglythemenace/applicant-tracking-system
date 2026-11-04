@@ -16,7 +16,7 @@
         <div class="page-head">
           <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> YOUR APPLICATION, AT A GLANCE</p>
           <h1>Check your application</h1>
-          <p>Enter the email address you applied with and the tracking code from your confirmation email.</p>
+          <p>Enter the email address you applied with and the tracking code shown after you submitted your application.</p>
         </div>
 
         <form id="track-form" class="panel" novalidate>
@@ -55,11 +55,11 @@
       const state = accepted ? 'accepted' : rejected ? 'rejected' : 'awaiting';
       const title = accepted ? 'Accepted' : rejected ? 'Rejected' : 'Awaiting review';
       const message = accepted
-        ? 'The hiring team has accepted your application. They will contact you with the next steps.'
+        ? 'The hiring team has accepted your application. Check this page for any interview details or next steps.'
         : rejected
           ? 'The hiring team has decided not to move forward with this application. Thank you for your interest.'
           : raw === 'interview' || raw === 'interviewing'
-            ? 'Your application is moving through the review process. Watch your email for updates from the hiring team.'
+          ? 'Your application is moving through the review process. Check this page for status and interview updates.'
             : 'Your application is with the hiring team. We’ll show an update here when its status changes.';
       const dashboard = document.getElementById('status-dashboard');
       const statusCard = L2E.el('div', { class: 'status-hero status-' + state },
@@ -71,11 +71,31 @@
       const details = L2E.el('div', { class: 'status-details panel' },
         L2E.el('div', { class: 'detail-block' }, L2E.el('span', { class: 'detail-label', text: 'POSITION' }), L2E.el('h2', { text: data.job_title || 'Your application' })),
         L2E.el('div', { class: 'detail-block' }, L2E.el('span', { class: 'detail-label', text: 'SUBMITTED' }), L2E.el('p', { text: data.applied_at ? L2E.formatDate(data.applied_at) : 'Date unavailable' })));
+      const history = Array.isArray(data.history) && data.history.length ? data.history : [{ status: data.status, changed_at: data.applied_at }];
+      const timeline = L2E.el('section', { class: 'panel application-timeline', 'aria-labelledby': 'timeline-title' },
+        L2E.el('h2', { id: 'timeline-title', text: 'Application progress' }),
+        L2E.el('ol', {}, ...history.map((item, index) => {
+          const info = L2E.statusInfo(item.status);
+          return L2E.el('li', { class: 'timeline-item' + (index === history.length - 1 ? ' is-current' : '') },
+            L2E.el('span', { class: 'timeline-marker', 'aria-hidden': 'true' }),
+            L2E.el('div', {}, L2E.el('strong', { text: info.label }), L2E.el('p', { class: 'muted', text: item.changed_at ? new Date(item.changed_at).toLocaleString() : '' })));
+        })));
+      const responseNote = data.response_expectation ? L2E.el('p', { class: 'alert alert-info', text: 'Expected update: ' + data.response_expectation }) : null;
+      let interview = null;
+      if (data.interview_at || data.interview_location) {
+        const interviewChildren = [L2E.el('h2', { text: 'Interview details' })];
+        if (data.interview_at) interviewChildren.push(L2E.el('p', { text: 'Date and time: ' + new Date(data.interview_at).toLocaleString(undefined, { timeZone: data.interview_timezone || undefined }) + (data.interview_timezone ? ' (' + data.interview_timezone + ')' : '') }));
+        if (data.interview_location) interviewChildren.push(L2E.el('p', { text: data.interview_location }));
+        if (data.interview_reschedule_url) {
+          try { const link = new URL(data.interview_reschedule_url); if (['https:', 'http:'].includes(link.protocol)) interviewChildren.push(L2E.el('a', { class: 'btn btn-secondary', href: link.href, target: '_blank', rel: 'noopener noreferrer', text: 'Request a new interview time' })); } catch (e) { /* ignore invalid link */ }
+        }
+        interview = L2E.el('section', { class: 'panel interview-details' }, ...interviewChildren);
+      }
       const nextStep = L2E.el('div', { class: 'next-step' },
         L2E.el('span', { class: 'next-step-icon', 'aria-hidden': 'true', text: accepted ? '✓' : rejected ? '↗' : '…' }),
         L2E.el('div', {},
           L2E.el('strong', { text: accepted ? 'What happens next' : rejected ? 'Keep exploring' : 'Nothing else needed right now' }),
-          L2E.el('p', { text: accepted ? 'Check your inbox for a message from the hiring team.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'We’ll contact you at the email address on your application.' })));
+          L2E.el('p', { text: accepted ? 'Review this dashboard for interview details and next steps.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'Check this dashboard again for status changes.' })));
       const another = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Check another application' });
       another.addEventListener('click', () => {
         dashboard.hidden = true;
@@ -84,7 +104,7 @@
         result.replaceChildren();
         document.getElementById('email').focus();
       });
-      dashboard.replaceChildren(statusCard, details, nextStep, L2E.el('div', { class: 'status-actions' }, another));
+      dashboard.replaceChildren(statusCard, details, responseNote, timeline, interview, nextStep, L2E.el('div', { class: 'status-actions' }, another));
       document.getElementById('lookup-card').hidden = true;
       dashboard.hidden = false;
       dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });

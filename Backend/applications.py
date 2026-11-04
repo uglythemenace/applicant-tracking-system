@@ -4,6 +4,8 @@ import logging
 import os
 import re
 import secrets
+from datetime import date, datetime, timezone
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 
@@ -102,13 +104,15 @@ def create_application(application: ApplicationCreate):
     try:
         job = (
             supabase.table("jobs")
-            .select("id")
+            .select("id, closes_at")
             .eq("id", application.job_id)
             .eq("status", "approved")
             .limit(1)
             .execute()
         )
         if not job.data:
+            raise HTTPException(status_code=404, detail="This position is no longer open")
+        if job.data[0].get("closes_at") and job.data[0]["closes_at"] < date.today().isoformat():
             raise HTTPException(status_code=404, detail="This position is no longer open")
 
         app_data = application.model_dump()
@@ -175,6 +179,12 @@ def create_application(application: ApplicationCreate):
             raise HTTPException(status_code=400, detail="Failed to submit application")
 
         saved = response.data[0]
+        try:
+            supabase.table("application_status_history").insert({
+                "application_id": saved["id"], "status": saved.get("status", "pending"),
+            }).execute()
+        except Exception:
+            logger.exception("Could not create initial application status history")
         job_title = get_job_title(saved.get("job_id"))
         email_sent = send_application_received(
             saved["email"],
@@ -210,7 +220,7 @@ def track_application(credentials: TrackRequest, response: Response):
     try:
         result = (
             supabase.table("applications")
-            .select("status, created_at, job_id, email")
+            .select("id, status, created_at, job_id, email, interview_at, interview_timezone, interview_location, interview_reschedule_url")
             .eq("tracking_code", credentials.code.strip().upper())
             .limit(1)
             .execute()
@@ -222,10 +232,25 @@ def track_application(credentials: TrackRequest, response: Response):
         if (record.get("email") or "").strip().lower() != credentials.email.strip().lower():
             raise not_found
 
+        job_result = supabase.table("jobs").select("title, response_expectation").eq("id", record["job_id"]).limit(1).execute()
+        job_data = (job_result.data or [{}])[0]
+        history_result = (
+            supabase.table("application_status_history")
+            .select("status, changed_at")
+            .eq("application_id", record["id"])
+            .order("changed_at")
+            .execute()
+        )
         return {
-            "job_title": get_job_title(record["job_id"]),
+            "job_title": job_data.get("title", get_job_title(record["job_id"])),
             "status": record["status"],
             "applied_at": record["created_at"],
+            "response_expectation": job_data.get("response_expectation"),
+            "history": history_result.data or [{"status": record["status"], "changed_at": record["created_at"]}],
+            "interview_at": record.get("interview_at"),
+            "interview_timezone": record.get("interview_timezone"),
+            "interview_location": record.get("interview_location"),
+            "interview_reschedule_url": record.get("interview_reschedule_url"),
         }
     except HTTPException:
         raise
@@ -238,8 +263,8 @@ def track_application(credentials: TrackRequest, response: Response):
         ) from None
 
 
-@router.get("/", response_model=list[ApplicationResponse], dependencies=[Depends(require_admin)])
-def get_applications(job_id: int | None = None):
+@router.get("/", response_model=list[ApplicationResponse])
+def get_applications(job_id: int | None = None, admin: dict = Depends(require_admin)):
     try:
         query = supabase.table("applications").select("*")
         if job_id:
@@ -251,23 +276,66 @@ def get_applications(job_id: int | None = None):
         raise HTTPException(status_code=500, detail="Could not load applications") from None
 
 
-@router.patch("/{application_id}", response_model=ApplicationResponse, dependencies=[Depends(require_admin)])
+@router.get("/{application_id}/activity")
+def get_application_activity(application_id: int, admin: dict = Depends(require_admin)):
+    try:
+        response = (
+            supabase.table("application_audit_log").select("id, actor_email, action, old_status, new_status, metadata, created_at")
+            .eq("application_id", application_id).order("created_at", desc=True).limit(100).execute()
+        )
+        return {"activity": response.data or []}
+    except Exception as exc:
+        logger.error("Could not load application activity (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Could not load application activity") from None
+
+
+@router.patch("/{application_id}", response_model=ApplicationResponse)
 def update_application_status(
     application_id: int,
     update_data: ApplicationUpdate,
     background_tasks: BackgroundTasks,
+    admin: dict = Depends(require_admin),
 ):
     try:
-        response = (
-            supabase.table("applications")
-            .update({"status": update_data.status})
-            .eq("id", application_id)
-            .execute()
-        )
+        current_response = supabase.table("applications").select("*").eq("id", application_id).limit(1).execute()
+        if not current_response.data:
+            raise HTTPException(status_code=404, detail="Application not found")
+        current = current_response.data[0]
+        changes = update_data.model_dump(exclude_unset=True)
+        if "interview_reschedule_url" in changes and changes["interview_reschedule_url"]:
+            parsed = urlsplit(changes["interview_reschedule_url"])
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                raise HTTPException(status_code=422, detail="Enter a valid http or https rescheduling link")
+        if not changes:
+            return current
+        new_status = changes.get("status")
+        status_changed = new_status is not None and new_status != current.get("status")
+        if new_status is None:
+            changes.pop("status", None)
+        if status_changed:
+            changes["status_updated_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("applications").update(changes).eq("id", application_id).execute()
         if not response.data:
             raise HTTPException(status_code=404, detail="Application not found")
 
         saved = response.data[0]
+        if status_changed:
+            supabase.table("application_status_history").insert({
+                "application_id": application_id, "status": saved["status"],
+            }).execute()
+        try:
+            supabase.table("application_audit_log").insert({
+                "application_id": application_id,
+                "actor_email": admin["email"],
+                "action": "status_changed" if status_changed else "application_details_updated",
+                "old_status": current.get("status"),
+                "new_status": saved.get("status"),
+                "metadata": {"notes_updated": "reviewer_notes" in changes, "interview_updated": any(k.startswith("interview_") for k in changes)},
+            }).execute()
+        except Exception:
+            logger.exception("Could not write application audit record")
+        if not status_changed:
+            return saved
         job_title = get_job_title(saved.get("job_id"))
         background_tasks.add_task(
             send_status_update,

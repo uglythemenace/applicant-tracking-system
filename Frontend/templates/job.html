@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job details | Learn2earn</title>
+  <meta name="description" content="Read the job details and apply online with Learn2earn.">
+  <link rel="stylesheet" href="/Frontend/static/style.css">
+</head>
+<body data-page="jobs">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header id="site-header" class="site-header"></header>
+  <main id="main"><div class="wrap wrap-narrow">
+    <p><a href="/jobs">← All open jobs</a></p>
+    <div id="job-notice" role="status" aria-live="polite" class="alert alert-info">Loading job details…</div>
+    <article id="job-detail" class="job-detail" hidden></article>
+  </div></main>
+  <footer id="site-footer" class="site-footer"></footer>
+  <script src="/Frontend/static/script.js"></script>
+  <script>
+    (async () => {
+      const notice = document.getElementById('job-notice');
+      const detail = document.getElementById('job-detail');
+      const id = new URLSearchParams(location.search).get('id');
+      if (!/^\d+$/.test(id || '')) { notice.textContent = 'Choose a job from the open jobs list to see its details.'; return; }
+      try {
+        const response = await L2E.request('/jobs/' + encodeURIComponent(id));
+        if (response.status === 404) throw new Error('This position is no longer open. Browse current openings instead.');
+        if (!response.ok) throw new Error('Could not load this job. Please try again.');
+        const job = await response.json();
+        const workMode = ({ remote: 'Remote', hybrid: 'Hybrid', on_site: 'On site' })[job.work_mode] || 'On site';
+        const employment = ({ full_time: 'Full time', part_time: 'Part time', contract: 'Contract', temporary: 'Temporary', internship: 'Internship' })[job.employment_type] || 'Full time';
+        const salary = job.salary_min != null || job.salary_max != null ? `${job.salary_currency || 'USD'} ${job.salary_min ?? '—'}–${job.salary_max ?? '—'} per ${job.salary_period || 'year'}` : '';
+        detail.replaceChildren(
+          L2E.el('span', { class: 'pill', text: job.department || 'General' }),
+          L2E.el('h1', { text: job.title }),
+          L2E.el('div', { class: 'job-facts' }, L2E.el('span', { text: workMode }), L2E.el('span', { text: employment }), job.location ? L2E.el('span', { text: job.location }) : null, salary ? L2E.el('span', { text: salary }) : null, job.closes_at ? L2E.el('span', { text: 'Apply by ' + L2E.formatDate(job.closes_at) }) : null),
+          L2E.el('h2', { text: 'About the role' }),
+          ...String(job.description || '').split(/\n{2,}/).map(paragraph => L2E.el('p', { text: paragraph })),
+          job.response_expectation ? L2E.el('p', { class: 'alert alert-info', text: 'When to expect an update: ' + job.response_expectation }) : null,
+          L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), text: 'Apply for this role' })
+        );
+        document.title = job.title + ' | Learn2earn';
+        const orgUrl = location.origin;
+        const schemaEmployment = ({ full_time: 'FULL_TIME', part_time: 'PART_TIME', contract: 'CONTRACTOR', temporary: 'TEMPORARY', internship: 'INTERN' })[job.employment_type] || 'FULL_TIME';
+        const structured = {
+          '@context': 'https://schema.org', '@type': 'JobPosting', title: job.title,
+          description: job.description, datePosted: job.created_at,
+          employmentType: schemaEmployment,
+          hiringOrganization: { '@type': 'Organization', name: 'Learn2earn', sameAs: orgUrl },
+          identifier: { '@type': 'PropertyValue', name: 'Learn2earn', value: String(job.id) },
+          ...(job.closes_at ? { validThrough: new Date(job.closes_at + 'T23:59:59Z').toISOString() } : {}),
+          ...(job.work_mode === 'remote' ? { jobLocationType: 'TELECOMMUTE' } : job.location ? { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location } } } : {}),
+          ...(job.salary_min != null || job.salary_max != null ? { baseSalary: { '@type': 'MonetaryAmount', currency: job.salary_currency || 'USD', value: { '@type': 'QuantitativeValue', minValue: job.salary_min, maxValue: job.salary_max, unitText: String(job.salary_period || 'YEAR').toUpperCase() } } } : {})
+        };
+        const script = document.createElement('script'); script.type = 'application/ld+json'; script.textContent = JSON.stringify(structured); document.head.append(script);
+        notice.hidden = true; detail.hidden = false;
+      } catch (error) { notice.className = 'alert alert-warn'; notice.textContent = error.message; }
+    })();
+  </script>
+</body>
+</html>

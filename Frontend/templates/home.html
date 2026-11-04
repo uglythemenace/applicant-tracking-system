@@ -80,7 +80,7 @@
           list.append(L2E.el('li', {},
             L2E.el('span', { class: 'mini-title' }, job.title,
               L2E.el('span', { class: 'mini-dept', text: job.department || 'General' })),
-            L2E.el('a', { class: 'btn btn-secondary btn-small', href: '/apply?job=' + encodeURIComponent(job.id), 'aria-label': 'Apply for ' + job.title, text: 'Apply' })
+            L2E.el('a', { class: 'btn btn-secondary btn-small', href: '/job?id=' + encodeURIComponent(job.id), 'aria-label': 'View ' + job.title, text: 'View role' })
           ));
         });
         document.getElementById('live-more').hidden = jobs.length <= 4;

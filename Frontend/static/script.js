@@ -40,7 +40,8 @@ const L2E = (() => {
   }
 
   function formatDate(iso) {
-    const d = new Date(iso);
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(String(iso || ""));
+    const d = dateOnly ? new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) : new Date(iso);
     return isNaN(d) ? "" : d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   }
 
@@ -112,6 +113,8 @@ const L2E = (() => {
           <nav aria-label="Footer">
             <a href="/jobs">Jobs</a>
             <a href="/track">Check my application</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/contact">Contact</a>
           </nav>
         </div>`;
     }
@@ -150,9 +153,9 @@ const L2E = (() => {
   }
 
   // ---------- Staff sign-in (shared by the admin and summary pages) ----------
-  // The key is kept for this browser tab only and is cleared when the tab closes.
-  let adminKey = "";
-  try { adminKey = sessionStorage.getItem("adminKey") || ""; } catch (e) { /* storage blocked */ }
+  // Supabase Auth session is kept in this tab only.
+  let staffSession = null;
+  try { staffSession = JSON.parse(sessionStorage.getItem("staffSession") || "null"); } catch (e) { staffSession = null; }
   let onReady = () => {};
   let onSignOut = () => {};
 
@@ -169,47 +172,64 @@ const L2E = (() => {
     if (message) { err.textContent = message; err.hidden = false; } else { err.hidden = true; }
     setPageLocked(true);
     overlay.hidden = false;
-    document.getElementById("admin-key-input").focus();
+    document.getElementById("staff-email-input").focus();
   }
 
   function mountLogin() {
-    const input = el("input", { type: "password", id: "admin-key-input", required: true, autocomplete: "current-password" });
+    const emailInput = el("input", { type: "email", id: "staff-email-input", required: true, autocomplete: "username", inputmode: "email" });
+    const passwordInput = el("input", { type: "password", id: "staff-password-input", required: true, autocomplete: "current-password" });
     const form = el("form", { class: "panel stack" },
-      el("div", {}, el("h2", { id: "login-title", text: "Staff sign in" }), el("p", { class: "muted", text: "Enter the staff access key to manage jobs and applications." })),
-      el("div", { class: "field" }, el("label", { for: "admin-key-input", text: "Staff access key" }), input),
+      el("div", {}, el("h2", { id: "login-title", text: "Staff sign in" }), el("p", { class: "muted", text: "Sign in with your approved staff account." })),
+      el("div", { class: "field" }, el("label", { for: "staff-email-input", text: "Staff email" }), emailInput),
+      el("div", { class: "field" }, el("label", { for: "staff-password-input", text: "Password" }), passwordInput),
       el("p", { id: "login-error", class: "alert alert-bad", role: "alert", hidden: true }),
       el("button", { type: "submit", class: "btn btn-primary btn-block", text: "Sign in" })
     );
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      adminKey = input.value.trim();
-      try { sessionStorage.setItem("adminKey", adminKey); } catch (err) { /* storage blocked */ }
-      input.value = "";
-      overlay.hidden = true;
-      setPageLocked(false);
-      onReady();
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true; button.textContent = "Signing in…";
+      try {
+        const response = await request("/auth/login", { method: "POST", body: { email: emailInput.value.trim(), password: passwordInput.value } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Sign-in failed. Check your details and try again.");
+        staffSession = { ...data, expires_at: Date.now() + Number(data.expires_in || 3600) * 1000 };
+        try { sessionStorage.setItem("staffSession", JSON.stringify(staffSession)); } catch (err) { /* storage blocked */ }
+        passwordInput.value = ""; overlay.hidden = true; setPageLocked(false); onReady();
+      } catch (error) {
+        const errorBox = document.getElementById("login-error");
+        errorBox.textContent = error.message || "Could not sign in. Try again."; errorBox.hidden = false;
+      } finally { button.disabled = false; button.textContent = "Sign in"; }
     });
     const overlay = el("div", { id: "login-overlay", class: "overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "login-title", hidden: true }, form);
     document.body.append(overlay);
   }
 
   function signOut() {
-    adminKey = "";
-    try { sessionStorage.removeItem("adminKey"); } catch (err) { /* storage blocked */ }
+    staffSession = null;
+    try { sessionStorage.removeItem("staffSession"); } catch (err) { /* storage blocked */ }
     onSignOut();
     showLogin();
   }
 
-  // Same as request(), but sends the staff key. A 401 means the key is wrong, so ask again.
+  async function refreshStaffSession() {
+    if (!staffSession?.refresh_token) return false;
+    const response = await request("/auth/refresh", { method: "POST", body: { refresh_token: staffSession.refresh_token } });
+    if (!response.ok) return false;
+    const data = await response.json();
+    staffSession = { ...data, expires_at: Date.now() + Number(data.expires_in || 3600) * 1000 };
+    try { sessionStorage.setItem("staffSession", JSON.stringify(staffSession)); } catch (err) { /* storage blocked */ }
+    return true;
+  }
+
+  // Staff requests carry a short-lived Supabase access token; refresh it before expiry.
   async function adminFetch(path, options = {}) {
-    const requestKey = adminKey;
-    const response = await request(path, { ...options, headers: { ...(options.headers || {}), "X-Admin-Key": requestKey } });
-    // Ignore an old failed request if the person signed out or signed in again.
-    if (response.status === 401 && requestKey && requestKey === adminKey) {
-      adminKey = "";
-      try { sessionStorage.removeItem("adminKey"); } catch (err) { /* storage blocked */ }
-      showLogin("That key was not accepted. Check it and try again.");
+    if (!staffSession?.access_token) { showLogin("Please sign in to continue."); return new Response(null, { status: 401 }); }
+    if (Date.now() > Number(staffSession.expires_at || 0) - 60000 && !(await refreshStaffSession())) {
+      signOut(); return new Response(null, { status: 401 });
     }
+    const response = await request(path, { ...options, headers: { ...(options.headers || {}), Authorization: "Bearer " + staffSession.access_token } });
+    if (response.status === 401 && staffSession) { signOut(); }
     return response;
   }
 
@@ -219,11 +239,11 @@ const L2E = (() => {
     onSignOut = cleared;
     mountLogin();
     document.getElementById("sign-out-btn").addEventListener("click", signOut);
-    if (adminKey) ready(); else showLogin();
+    if (staffSession?.access_token && staffSession?.refresh_token) ready(); else showLogin();
   }
 
-  const keyIsCurrent = (k) => Boolean(adminKey) && k === adminKey;
-  const currentKey = () => adminKey;
+  const keyIsCurrent = (k) => Boolean(staffSession) && k === staffSession.user?.email;
+  const currentKey = () => staffSession?.user?.email || "";
 
   mountChrome();
 

@@ -30,6 +30,8 @@
             <label for="dept">Job area (optional)</label>
             <select id="dept"><option value="">All job areas</option></select>
           </div>
+          <div class="field"><label for="location-filter">Location</label><select id="location-filter"><option value="">Any location</option></select></div>
+          <div class="field"><label for="mode-filter">Work arrangement</label><select id="mode-filter"><option value="">All arrangements</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="on_site">On site</option></select></div>
         </div>
       </section>
 
@@ -49,35 +51,40 @@
     const countLine = document.getElementById('count-line');
     const search = document.getElementById('search');
     const dept = document.getElementById('dept');
+    const locationFilter = document.getElementById('location-filter');
+    const modeFilter = document.getElementById('mode-filter');
     let allJobs = [];
 
     function jobCard(job) {
-      const desc = L2E.el('p', { class: 'job-desc', id: 'desc-' + job.id, text: job.description });
-      const more = L2E.el('button', { type: 'button', class: 'link-btn', 'aria-expanded': 'false', 'aria-controls': 'desc-' + job.id, text: 'Read the full description' });
-      more.addEventListener('click', () => {
-        const open = desc.classList.toggle('is-open');
-        more.setAttribute('aria-expanded', String(open));
-        more.textContent = open ? 'Show less' : 'Read the full description';
-      });
+      const workMode = ({ remote: 'Remote', hybrid: 'Hybrid', on_site: 'On site' })[job.work_mode] || 'On site';
+      const employment = ({ full_time: 'Full time', part_time: 'Part time', contract: 'Contract', temporary: 'Temporary', internship: 'Internship' })[job.employment_type] || 'Full time';
+      const salary = job.salary_min != null || job.salary_max != null
+        ? `${job.salary_currency || 'USD'} ${job.salary_min ?? '—'}–${job.salary_max ?? '—'} / ${job.salary_period || 'year'}` : '';
       return L2E.el('article', { class: 'job' },
         L2E.el('div', { class: 'job-head' },
           L2E.el('span', { class: 'pill', text: job.department || 'General' }),
           L2E.el('span', { class: 'job-open', text: 'Open position' })),
         L2E.el('h2', { class: 'job-title', text: job.title }),
-        desc,
-        (job.description || '').length > 160 ? more : null,
+        L2E.el('p', { class: 'job-desc', text: (job.description || '').slice(0, 220) + ((job.description || '').length > 220 ? '…' : '') }),
+        L2E.el('div', { class: 'job-facts' },
+          L2E.el('span', { text: workMode }), L2E.el('span', { text: employment }),
+          job.location ? L2E.el('span', { text: job.location }) : null, salary ? L2E.el('span', { text: salary }) : null),
         L2E.el('div', { class: 'job-footer' },
-          L2E.el('span', { class: 'job-footer-note', text: 'A few minutes to apply' }),
-          L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), 'aria-label': 'Apply for ' + job.title, text: 'Apply for this role' }))
+          L2E.el('span', { class: 'job-footer-note', text: job.closes_at ? 'Apply by ' + L2E.formatDate(job.closes_at) : 'A few minutes to apply' }),
+          L2E.el('a', { class: 'btn btn-secondary', href: '/job?id=' + encodeURIComponent(job.id), 'aria-label': 'View details for ' + job.title, text: 'View job details' }))
       );
     }
 
     function render() {
       const q = search.value.trim().toLowerCase();
       const d = dept.value;
+      const location = locationFilter.value;
+      const mode = modeFilter.value;
       const shown = allJobs.filter(j =>
         (!d || (j.department || 'General') === d) &&
-        (!q || (j.title + ' ' + j.description + ' ' + (j.department || '')).toLowerCase().includes(q)));
+        (!location || (j.location || '').toLowerCase() === location.toLowerCase()) &&
+        (!mode || (j.work_mode || 'on_site') === mode) &&
+        (!q || [j.title, j.description, j.department, j.location, j.work_mode, j.employment_type].join(' ').toLowerCase().includes(q)));
       container.replaceChildren();
       container.setAttribute('aria-busy', 'false');
       if (allJobs.length === 0) {
@@ -108,6 +115,8 @@
         notice.replaceChildren();
         const names = [...new Set(allJobs.map(j => j.department || 'General'))].sort();
         dept.replaceChildren(L2E.el('option', { value: '', text: 'All job areas' }), ...names.map(n => L2E.el('option', { value: n, text: n })));
+        const places = [...new Set(allJobs.map(j => j.location).filter(Boolean))].sort();
+        locationFilter.replaceChildren(L2E.el('option', { value: '', text: 'Any location' }), ...places.map(n => L2E.el('option', { value: n, text: n })));
         render();
       } catch (err) {
         container.replaceChildren();
@@ -123,6 +132,8 @@
 
     search.addEventListener('input', render);
     dept.addEventListener('change', render);
+    locationFilter.addEventListener('change', render);
+    modeFilter.addEventListener('change', render);
     load();
   </script>
 </body>

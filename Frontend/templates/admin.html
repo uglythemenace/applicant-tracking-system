@@ -42,6 +42,24 @@
               <input type="text" id="job-department" placeholder="Support (or leave empty)">
             </div>
             <div class="field">
+              <label for="job-location">Location</label>
+              <input type="text" id="job-location" placeholder="City, country or Anywhere">
+            </div>
+            <div class="filters">
+              <div class="field"><label for="job-work-mode">Where the work happens</label><select id="job-work-mode"><option value="on_site">On site</option><option value="hybrid">Hybrid</option><option value="remote">Remote</option></select></div>
+              <div class="field"><label for="job-employment-type">Employment type</label><select id="job-employment-type"><option value="full_time">Full time</option><option value="part_time">Part time</option><option value="contract">Contract</option><option value="temporary">Temporary</option><option value="internship">Internship</option></select></div>
+            </div>
+            <div class="filters">
+              <div class="field"><label for="job-salary-min">Minimum pay (optional)</label><input id="job-salary-min" type="number" min="0" step="0.01"></div>
+              <div class="field"><label for="job-salary-max">Maximum pay (optional)</label><input id="job-salary-max" type="number" min="0" step="0.01"></div>
+            </div>
+            <div class="filters">
+              <div class="field"><label for="job-salary-currency">Pay currency</label><input id="job-salary-currency" value="USD" maxlength="3" autocomplete="off"></div>
+              <div class="field"><label for="job-salary-period">Pay period</label><select id="job-salary-period"><option value="year">Per year</option><option value="month">Per month</option><option value="week">Per week</option><option value="day">Per day</option><option value="hour">Per hour</option></select></div>
+            </div>
+            <div class="field"><label for="job-closes-at">Apply by (optional)</label><input id="job-closes-at" type="date"></div>
+            <div class="field"><label for="job-response-expectation">When applicants can expect an update (optional)</label><input id="job-response-expectation" maxlength="240" placeholder="For example: within two weeks"></div>
+            <div class="field">
               <label for="job-description">What the job involves (required)</label>
               <span class="hint" id="h-desc">Describe the daily work, the hours, and what you are looking for.</span>
               <textarea id="job-description" required rows="5" aria-describedby="h-desc"></textarea>
@@ -65,6 +83,10 @@
       <section class="section" aria-labelledby="apps-title">
         <h2 id="apps-title">People who applied</h2>
         <div class="chips" id="filters" role="group" aria-label="Show applications that are"></div>
+        <div class="filters admin-app-filters">
+          <div class="field"><label for="applicant-search">Find an applicant</label><input id="applicant-search" type="search" placeholder="Search name, email, phone or job"></div>
+          <div class="field"><label for="applicant-sort">Order applicants</label><select id="applicant-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></div>
+        </div>
         <div class="table-wrap">
           <table class="data">
             <thead>
@@ -74,7 +96,7 @@
                 <th scope="col">Job</th>
                 <th scope="col">Resume</th>
                 <th scope="col">Status</th>
-                <th scope="col">Change status</th>
+                <th scope="col">Manage applicant</th>
               </tr>
             </thead>
             <tbody id="applicant-table-body">
@@ -188,15 +210,25 @@
       try {
         const res = await L2E.adminFetch('/jobs/', {
           method: 'POST',
-          body: { title, description, department: $('job-department').value.trim() || 'General' }
+          body: {
+            title, description, department: $('job-department').value.trim() || 'General',
+            location: $('job-location').value.trim() || null,
+            work_mode: $('job-work-mode').value, employment_type: $('job-employment-type').value,
+            salary_min: $('job-salary-min').value ? Number($('job-salary-min').value) : null,
+            salary_max: $('job-salary-max').value ? Number($('job-salary-max').value) : null,
+            salary_currency: $('job-salary-currency').value.trim().toUpperCase() || 'USD',
+            salary_period: $('job-salary-period').value,
+            closes_at: $('job-closes-at').value || null,
+            response_expectation: $('job-response-expectation').value.trim() || null
+          }
         });
-        if (!res.ok) throw new Error('Failed to post job');
+        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || 'Failed to post job'); }
         $('job-form').reset();
         L2E.toast('Job posted. It is now on the public jobs page.');
         loadJobs();
       } catch (err) {
         console.error('Error posting job:', err);
-        msg.className = 'alert alert-bad'; msg.textContent = "The job wasn't posted. Wait a few seconds and press the button again."; msg.hidden = false;
+        msg.className = 'alert alert-bad'; msg.textContent = err.message || "The job wasn't posted. Check the form and try again."; msg.hidden = false;
       } finally {
         btn.disabled = false; btn.textContent = 'Post this job';
       }
@@ -300,7 +332,12 @@
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No applicants submitted yet.' })));
         return;
       }
-      const shown = applicants.filter(a => filter === 'all' || a.status === filter);
+      const query = $('applicant-search').value.trim().toLowerCase();
+      const jobTitle = (a) => jobsById[a.job_id]?.title || '';
+      let shown = applicants.filter(a => (filter === 'all' || a.status === filter) &&
+        (!query || [a.candidate_name, a.email, a.phone_number, jobTitle(a)].join(' ').toLowerCase().includes(query)));
+      if ($('applicant-sort').value === 'oldest') shown.sort((a, b) => a.id - b.id);
+      else if ($('applicant-sort').value === 'name') shown.sort((a, b) => a.candidate_name.localeCompare(b.candidate_name));
       if (shown.length === 0) {
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No one is in this group right now.' })));
         return;
@@ -308,6 +345,27 @@
       shown.forEach(app => {
         const info = L2E.statusInfo(app.status);
         const job = jobsById[app.job_id];
+        const notes = L2E.el('textarea', { rows: '3', maxlength: '10000', 'aria-label': 'Private reviewer notes for ' + app.candidate_name, placeholder: 'Private notes for the hiring team' });
+        notes.value = app.reviewer_notes || '';
+        const interviewDate = L2E.el('input', { type: 'datetime-local', 'aria-label': 'Interview date and time in this browser’s local time zone for ' + app.candidate_name });
+        if (app.interview_at) { const localDate = new Date(new Date(app.interview_at).getTime() - new Date(app.interview_at).getTimezoneOffset() * 60000); interviewDate.value = localDate.toISOString().slice(0, 16); }
+        const timezone = L2E.el('input', { maxlength: '80', readonly: true, 'aria-label': 'Interview time zone for this browser' }); timezone.value = app.interview_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const interviewLocation = L2E.el('input', { maxlength: '500', 'aria-label': 'Interview location or meeting details', placeholder: 'Location or meeting details' }); interviewLocation.value = app.interview_location || '';
+        const reschedule = L2E.el('input', { type: 'url', maxlength: '2048', 'aria-label': 'Interview rescheduling link', placeholder: 'Optional reschedule link' }); reschedule.value = app.interview_reschedule_url || '';
+        const saveDetails = L2E.el('button', { type: 'button', class: 'btn btn-small btn-secondary', text: 'Save notes and interview' });
+        saveDetails.addEventListener('click', () => saveApplicantDetails(app, { reviewer_notes: notes.value, interview_at: interviewDate.value ? new Date(interviewDate.value).toISOString() : null, interview_timezone: timezone.value.trim() || null, interview_location: interviewLocation.value.trim() || null, interview_reschedule_url: reschedule.value.trim() || null }));
+        const activity = L2E.el('button', { type: 'button', class: 'btn btn-small btn-plain', text: 'View activity' });
+        const activityList = L2E.el('div', { class: 'muted', 'aria-live': 'polite' });
+        activity.addEventListener('click', () => loadActivity(app, activityList));
+        const manage = L2E.el('details', { class: 'applicant-manage' },
+          L2E.el('summary', { text: 'Private notes and interview details' }),
+          L2E.el('div', { class: 'stack' },
+            L2E.el('label', {}, 'Reviewer notes (staff only)', notes),
+            L2E.el('label', {}, 'Interview date and time (your local time)', interviewDate),
+            L2E.el('label', {}, 'Time zone used', timezone),
+            L2E.el('label', {}, 'Location or video details', interviewLocation),
+            L2E.el('label', {}, 'Rescheduling link for applicant', reschedule),
+            saveDetails, activity, activityList));
         tbody.append(L2E.el('tr', {},
           L2E.el('td', { 'data-label': 'Applicant' },
             L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }), app.created_at ? L2E.el('span', { class: 'sub', text: 'Applied ' + L2E.formatDate(app.created_at) }) : null)),
@@ -317,13 +375,32 @@
           L2E.el('td', { 'data-label': 'Job', text: job ? job.title : 'Job #' + app.job_id }),
           L2E.el('td', { 'data-label': 'Resume' }, resumeCell(app)),
           L2E.el('td', { 'data-label': 'Status' }, L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label })),
-          L2E.el('td', { 'data-label': 'Change status' }, L2E.el('div', { class: 'row-actions' },
+          L2E.el('td', { 'data-label': 'Manage applicant' }, L2E.el('div', { class: 'row-actions' },
             actionButton(app, 'reviewing', 'Start review', 'btn-plain'),
             actionButton(app, 'interview', 'Interview', 'btn-secondary'),
             actionButton(app, 'accepted', 'Accept', 'btn-good', 'The applicant will see "Accepted" when they check their application.'),
-            actionButton(app, 'rejected', 'Reject', 'btn-danger', 'The applicant will see "Not selected" when they check their application.')))
+            actionButton(app, 'rejected', 'Reject', 'btn-danger', 'The applicant will see "Not selected" when they check their application.'), manage))
         ));
       });
+    }
+
+    async function saveApplicantDetails(app, details) {
+      try {
+        const res = await L2E.adminFetch('/applications/' + app.id, { method: 'PATCH', body: details });
+        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || 'Could not save applicant details'); }
+        L2E.toast('Private notes and interview details saved.'); loadApplicants();
+      } catch (err) { L2E.toast(err.message || 'Could not save applicant details.', 'bad'); }
+    }
+
+    async function loadActivity(app, target) {
+      target.textContent = 'Loading activity…';
+      try {
+        const res = await L2E.adminFetch('/applications/' + app.id + '/activity');
+        if (!res.ok) throw new Error('Could not load activity');
+        const data = await res.json();
+        const rows = data.activity || [];
+        target.replaceChildren(...(rows.length ? rows.map(item => L2E.el('p', { text: `${L2E.formatDate(item.created_at)} · ${item.actor_email} · ${item.action.replaceAll('_', ' ')}` })) : [L2E.el('p', { text: 'No activity recorded yet.' })]));
+      } catch (err) { target.textContent = 'Could not load activity. Try again.'; }
     }
 
     async function loadApplicants() {
@@ -375,6 +452,8 @@
     }
 
     $('job-form').addEventListener('submit', postJob);
+    $('applicant-search').addEventListener('input', renderApplicants);
+    $('applicant-sort').addEventListener('change', renderApplicants);
     $('refresh-btn').addEventListener('click', refreshAll);
     $('toggle-archived-btn').addEventListener('click', () => {
       archivedJobsVisible = !archivedJobsVisible;

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from jobs import router as jobs_router
 from applications import router as applications_router
+from auth import router as auth_router
 
 app = FastAPI(title="Applicant Tracking System API", version="0.1.0")
 
@@ -17,6 +18,13 @@ app.add_middleware(
 
 app.include_router(jobs_router)
 app.include_router(applications_router)
+app.include_router(auth_router)
+
+
+@app.get("/site-info")
+def site_info():
+    import os
+    return {"contact_email": os.getenv("PUBLIC_CONTACT_EMAIL", "").strip()}
 
 @app.get("/")
 def read_root():

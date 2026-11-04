@@ -4,12 +4,12 @@ A simple careers site and FastAPI backend for posting jobs, receiving applicatio
 
 ## Priority fixes in this copy
 
-- Public job endpoints now return **open** jobs only. The admin dashboard sends its existing admin key to retrieve open and closed jobs.
+- Public job endpoints return open, unexpired jobs only. Individual job pages show clear details and search-engine structured job data.
 - Staff can archive closed jobs from the main list and restore them later; archiving preserves their application history.
-- The admin dashboard shows safe résumé links, resets counts when there are no applications, and has a sign-out button.
+- The admin dashboard includes applicant search and sorting, private notes, interview details, an activity log, and individual Supabase Auth sign-in.
 - Applications require a non-blank name and a valid email; résumé links must use HTTP or HTTPS. The backend rejects applications to closed or missing jobs.
 - Tracking lookups use a JSON POST request instead of putting the email and code in the request URL. New tracking links no longer put the code in the page address.
-- The tracking timeline highlights only the current status; it does not claim that earlier stages happened.
+- Applicants can view recorded status changes and interview details on their private tracking dashboard.
 - Form labels, error announcements, contrast, mobile navigation, and small-screen job cards were improved.
 - The site was redesigned for everyday readers: large text, big buttons, plain words, confirmation before Accept, Reject and Close, a phone-friendly layout, and a friendly "server is waking up" message. The public pages use the shared `Frontend/static/style.css` stylesheet.
 - Applicant email and optional consent-based SMS notifications are supported. Phone and email reuse are blocked by a database trigger, with a ten-minute cooldown after repeated duplicate attempts.
@@ -18,17 +18,21 @@ A simple careers site and FastAPI backend for posting jobs, receiving applicatio
 
 The tracking API uses **POST** so the applicant's email and tracking code do not appear in the request URL. Deploy the backend and frontend close together; older deployed versions may not work with the updated tracking flow. Other clients that call the tracking endpoint must also use POST.
 
-Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` before deploying. `20261103_add_application_phone.sql` adds phone/text consent and database-side duplicate protection with cooldown storage. `20261103_add_job_archiving.sql` adds a reversible archive flag so jobs can be removed from public listings and the main admin list without deleting their applications. Then deploy the backend and frontend together. Set a strong `APPLICATION_COOLDOWN_SECRET`; the backend can use the existing `ADMIN_API_KEY` as a fallback so cooldown storage contains keyed hashes rather than raw applicant identifiers. Application and status emails can use Resend or Gmail SMTP; configure one provider and `FRONTEND_URL`. Optional SMS uses Twilio; configure `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`. Applicants must explicitly opt in to texts. Twilio charges per message, and sender registration or recipient verification can be required by country/account type; see [Twilio's SMS setup guide](https://www.twilio.com/docs/messaging/tutorials/how-to-send-sms-messages). If email or SMS delivery is unavailable, the confirmation page still displays the tracking code.
+Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` before deploying. `20261104_job_discovery_and_candidate_experience.sql` adds public job details, candidate status history, interview details, private notes, and the admin activity log. It relies on the previously applied phone and job archive migrations. The migration keeps applicant timeline and audit tables private to the backend service role.
+
+The staff page now uses individual Supabase Auth accounts. In Supabase, create an Auth user for each staff member, then set `SUPABASE_ANON_KEY` and a comma-separated `ADMIN_EMAILS` allowlist in Render. Keep `SUPABASE_KEY` as the service-role key used by the backend; never expose that key to the frontend. The `ADMIN_API_KEY` remains only as a fallback secret for duplicate-attempt hash generation, not as staff login. Set `PUBLIC_CONTACT_EMAIL` in Render to show the hiring team's contact address on `/contact`.
+
+Email and SMS delivery configuration is documented below and can be completed separately. The application confirmation still displays the tracking code if a messaging provider is unavailable.
 
 Email delivery can use either Resend with a verified domain or Gmail SMTP. Resend's test sender (`onboarding@resend.dev`) is not a production sender for arbitrary applicants. For Gmail, enable 2-Step Verification, create an App Password, and set `EMAIL_PROVIDER=smtp`, `SMTP_USERNAME`, and `SMTP_APP_PASSWORD` in Render; the code uses Gmail's secure SMTP connection. Google requires 2-Step Verification for App Passwords. Keep the app password in Render only, never in GitHub or chat. Alternatively, set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` to an address on a domain verified with Resend. If the selected provider is not configured, applications still save and the tracking code remains on the confirmation page while the backend logs the configuration issue.
 
 After deployment, verify that:
 
-1. The Render backend installs the updated `Backend/requirements.txt` and has `SUPABASE_URL`, `SUPABASE_KEY`, a strong `ADMIN_API_KEY`, `FRONTEND_URL`, and either the Resend settings (`EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, verified `EMAIL_FROM`) or Gmail SMTP settings (`EMAIL_PROVIDER=smtp`, `SMTP_USERNAME`, `SMTP_APP_PASSWORD`). `APPLICATION_COOLDOWN_SECRET` is recommended; otherwise the backend uses `ADMIN_API_KEY`. Add Twilio settings only when SMS sending is available. **Never put real values in the frontend or commit them to GitHub.**
+1. Apply the SQL migrations in order in Supabase. The Render backend needs `SUPABASE_URL`, the service-role `SUPABASE_KEY`, the public `SUPABASE_ANON_KEY`, `ADMIN_EMAILS`, and a strong `APPLICATION_COOLDOWN_SECRET`. Add `PUBLIC_CONTACT_EMAIL` for the contact page. Configure email or SMS provider variables separately when ready. **Never put real values in the frontend or commit them to GitHub.**
 2. The Vercel project uses the repository root and serves `/Frontend/static/style.css` and `/Frontend/static/script.js` successfully.
 3. The jobs page shows only open jobs, and the admin page can also show closed jobs after signing in.
-4. In a **staging environment**, submit a test application with email-only and text opt-in, confirm the tracking code delivery, and check the stored phone and consent in admin. Reusing either credential should be rejected; the fourth duplicate attempt should return a 10-minute cooldown.
-5. In staging, change an opted-in applicant to accepted and rejected and confirm email and SMS status notices; also check the tracking POST with the correct email and code shows the dashboard, a wrong pair returns 404, `GET /jobs/` without an admin key does not return closed jobs, and `GET /applications/` without a key returns 401.
+4. In a **staging environment**, submit an application, save the on-screen tracking code, and confirm the applicant dashboard opens with the matching email and code. Reusing an email or phone should be rejected; repeated duplicate attempts should trigger the ten-minute cooldown.
+5. In staging, change an applicant's status, schedule an interview, then confirm the applicant dashboard shows those updates. Confirm staff can search and sort applicants and that `/applications/` rejects requests without an approved staff sign-in.
 
 The frontend still points at your existing Render URL. Viewing or deploying it without changing that URL will use that backend. Do not submit fake applications to the live site; use a staging backend or the mock tests below.
 
@@ -77,10 +81,10 @@ All styling is in one plain file, `Frontend/static/style.css`, and all shared be
 
 ## Remaining work before real hiring
 
-- Add a privacy notice and a way to contact the hiring team. Decide how long applicant data is kept and how deletion requests are handled.
+- Decide and document a formal retention period and deletion workflow before real hiring begins.
 - Provide a secure way to recover a lost tracking code. Email sends the code when the selected provider is configured correctly.
-- The admin still uses a shared key in browser session storage. For real applicant information, use individual accounts, session expiry, MFA, server-side authorization, rate limiting and audit logs. Review Supabase row-level security as well. These changes are not a complete security audit.
+- Staff access uses individual Supabase Auth accounts and an email allowlist. MFA setup and enforcement are not included in this change; add and verify that flow before relying on MFA. The backend verifies staff tokens against Supabase on protected requests; the service key remains backend-only.
 - Check log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.
-- Add real job details such as location, employment type and requirements; don't publish placeholder roles.
+- Add complete, accurate job responsibilities and qualifications before publishing each role.
 - `/dashboard` is now a staff-only summary page that uses the same sign-in as `/admin`. `/post-job` redirects to `/admin`, where jobs are posted.
 - The public navigation does not display the staff admin sign-in; staff can open `/admin` directly.
