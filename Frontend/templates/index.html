@@ -57,10 +57,12 @@
           </div>
 
           <div class="field" id="f-cv">
-            <label for="candidate-cv">Link to your resume (optional)</label>
-            <span class="hint" id="h-cv">Paste a link to your resume, such as a Google Drive or LinkedIn link. You can leave this blank.</span>
-            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="Paste your resume link (optional)" aria-describedby="h-cv e-cv">
-            <p class="error-text" id="e-cv">Enter a link to your online resume, not an email address, or leave this box empty.</p>
+            <label for="candidate-cv-file">Résumé file (optional)</label>
+            <span class="hint" id="h-cv">Upload a PDF or Word document (up to 8 MB), or paste a link below. Choose one option. Only the hiring team can access an uploaded file.</span>
+            <input type="file" id="candidate-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="h-cv e-cv">
+            <label for="candidate-cv" class="sub-label" style="display:block;margin-top:12px">Or paste a résumé link</label>
+            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="https://…" aria-describedby="h-cv e-cv">
+            <p class="error-text" id="e-cv">Choose a PDF or DOCX file up to 8 MB, or enter a valid web link, but not both.</p>
           </div>
 
           <div id="status-message" role="alert" hidden></div>
@@ -168,10 +170,12 @@
       const phoneInput = $('candidate-phone');
       const smsOptIn = $('sms-updates-opt-in');
       const cvInput = $('candidate-cv');
+      const cvFileInput = $('candidate-cv-file');
       const name = nameInput.value.trim();
       const email = emailInput.value.trim();
       const phone = phoneInput.value.trim();
       const cv = cvInput.value.trim();
+      const cvFile = cvFileInput.files[0] || null;
 
       // Check every field first, then send focus to the first problem.
       const problems = [];
@@ -184,14 +188,18 @@
       const phoneDigits = phone.replace(/\D/g, '');
       const phoneBad = smsOptIn.checked && !phone || !!phone && (!/^\+[0-9().\-\s]{8,30}$/.test(phone) || phoneDigits.length < 8 || phoneDigits.length > 15);
       setError('f-phone', phoneInput, phoneBad); if (phoneBad) problems.push(phoneInput);
-      let cvBad = false;
+      let cvBad = !!(cv && cvFile);
+      if (cvFile) {
+        const ext = cvFile.name.toLowerCase().split('.').pop();
+        cvBad = cvBad || !['pdf', 'docx'].includes(ext) || cvFile.size > 8 * 1024 * 1024 || cvFile.size === 0;
+      }
       if (cv) {
         try {
           const resumeUrl = new URL(cv);
           cvBad = !['http:', 'https:'].includes(resumeUrl.protocol) || /^[^/]+@[^/]+$/.test(resumeUrl.host);
         } catch (err) { cvBad = true; }
       }
-      setError('f-cv', cvInput, cvBad); if (cvBad) problems.push(cvInput);
+      setError('f-cv', cvInput, cvBad); if (cvBad) problems.push(cvFile && !cv ? cvFileInput : cvInput);
       if (problems.length) {
         showFormError(problems.length === 1 ? 'Please fix the box marked below.' : 'Please fix the ' + problems.length + ' boxes marked below.');
         problems[0].focus();
@@ -203,9 +211,17 @@
       const jobTitle = select.options[select.selectedIndex].text;
 
       try {
+        const application = { candidate_name: name, email, phone_number: phone ? '+' + phoneDigits : undefined, sms_updates_consent: smsOptIn.checked, job_id: parseInt(select.value, 10), resume_url: cv || null };
+        const body = cvFile ? new FormData() : application;
+        if (cvFile) {
+          Object.entries(application).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) body.append(key, String(value));
+          });
+          body.append('resume_file', cvFile);
+        }
         const response = await L2E.request('/applications/', {
           method: 'POST',
-          body: { candidate_name: name, email, phone_number: phone ? '+' + phoneDigits : undefined, sms_updates_consent: smsOptIn.checked, job_id: parseInt(select.value, 10), resume_url: cv || null },
+          body,
           onSlow: () => { msg.className = 'alert alert-info'; msg.textContent = L2E.WAKE_NOTE; msg.hidden = false; }
         });
         if (!response.ok) {
@@ -259,8 +275,8 @@
               ? 'For safety, repeat attempts with details already used are paused. Please wait about ' + Math.ceil(err.retryAfterSeconds / 60) + ' minutes before trying again.'
               : status === 429
                 ? 'Too many attempts have been made. Please wait a few minutes before trying again.'
-          : status === 400 || status === 422
-            ? 'The application service rejected some details. Check your name, email, phone number and resume link, then try again.'
+          : status === 400 || status === 422 || status === 413
+            ? 'The application service rejected some details. Check your name, email, phone number and résumé file or link, then try again.'
             : status && status >= 500
               ? 'The application service had a server error (HTTP ' + status + '). We could not confirm whether your application was saved. Check with the hiring team before trying again.'
               : status
@@ -304,6 +320,7 @@
     // Clear a box's error as soon as the person starts fixing it.
     [['f-name', 'candidate-name'], ['f-email', 'candidate-email'], ['f-phone', 'candidate-phone'], ['f-cv', 'candidate-cv'], ['f-job', 'job-id']].forEach(([f, i]) =>
       $(i).addEventListener('input', () => setError(f, $(i), false)));
+    $('candidate-cv-file').addEventListener('change', () => setError('f-cv', $('candidate-cv'), false));
     $('sms-updates-opt-in').addEventListener('change', () => setError('f-phone', $('candidate-phone'), false));
     loadJobs();
   </script>

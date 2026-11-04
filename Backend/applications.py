@@ -4,10 +4,13 @@ import logging
 import os
 import re
 import secrets
+import zipfile
+from io import BytesIO
 from datetime import date, datetime, timezone
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from starlette.datastructures import UploadFile
 
 from auth import require_admin
 from database import supabase
@@ -27,6 +30,12 @@ from schemas import (
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 logger = logging.getLogger(__name__)
+RESUME_BUCKET = "candidate-resumes"
+MAX_RESUME_BYTES = 8 * 1024 * 1024
+RESUME_TYPES = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 
 # Exclude lookalike characters so codes are easier to read and type.
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -98,9 +107,68 @@ def _reject_duplicate_application(email: str, phone: str | None, duplicate_field
     )
 
 
+def _read_resume_upload(upload: UploadFile | None) -> tuple[bytes, str, str] | None:
+    if upload is None:
+        return None
+    if not isinstance(upload, UploadFile):
+        if upload == "":
+            return None
+        raise HTTPException(status_code=422, detail="Upload a résumé file")
+    if not upload.filename:
+        return None
+    filename = os.path.basename(upload.filename.replace("\\", "/"))
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in RESUME_TYPES:
+        raise HTTPException(status_code=422, detail="Upload a PDF or DOCX résumé")
+    content = upload.file.read(MAX_RESUME_BYTES + 1)
+    if len(content) > MAX_RESUME_BYTES:
+        raise HTTPException(status_code=413, detail="Résumé files must be 8 MB or smaller")
+    mime_type = RESUME_TYPES[extension]
+    if extension == ".pdf" and not content.startswith(b"%PDF-"):
+        raise HTTPException(status_code=422, detail="That file is not a valid PDF")
+    if extension == ".docx":
+        try:
+            with zipfile.ZipFile(BytesIO(content)) as archive:
+                if "word/document.xml" not in archive.namelist():
+                    raise ValueError("Missing Word document")
+        except (zipfile.BadZipFile, ValueError):
+            raise HTTPException(status_code=422, detail="That file is not a valid DOCX document") from None
+    return content, extension, mime_type
+
+
+def _remove_resume(path: str | None) -> None:
+    if not path:
+        return
+    try:
+        supabase.storage.from_(RESUME_BUCKET).remove([path])
+    except Exception:
+        logger.exception("Could not remove an unlinked résumé upload")
+
+
 @router.post("/", response_model=ApplicationResponse)
-def create_application(application: ApplicationCreate):
+async def create_application(request: Request):
     """Accept applications only for jobs that are currently open."""
+    resume_upload = None
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        if "multipart/form-data" in content_type:
+            content_length = int(request.headers.get("content-length", "0") or 0)
+            if content_length > MAX_RESUME_BYTES + 512 * 1024:
+                raise HTTPException(status_code=413, detail="Résumé files must be 8 MB or smaller")
+            form = await request.form()
+            payload = {key: value for key, value in form.items() if key != "resume_file"}
+            resume_upload = _read_resume_upload(form.get("resume_file"))
+            application = ApplicationCreate.model_validate(payload)
+        else:
+            application = ApplicationCreate.model_validate(await request.json())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.info("Invalid application form (%s)", type(exc).__name__)
+        raise HTTPException(status_code=422, detail="Check the application details and try again") from None
+    if resume_upload and application.resume_url:
+        raise HTTPException(status_code=422, detail="Upload a résumé or provide a link, not both")
+
     try:
         job = (
             supabase.table("jobs")
@@ -158,13 +226,30 @@ def create_application(application: ApplicationCreate):
             _reject_duplicate_application(app_data["email"], phone, duplicate_fields)
 
         response = None
+        # Upload before saving the row; if the insert fails, remove the private object.
+        resume_path = None
         # The tracking_code column is UNIQUE, so retry only code collisions.
         for _ in range(5):
             app_data["tracking_code"] = generate_tracking_code()
+            if resume_upload:
+                resume_bytes, extension, mime_type = resume_upload
+                resume_path = f"applications/{secrets.token_hex(24)}{extension}"
+                try:
+                    supabase.storage.from_(RESUME_BUCKET).upload(
+                        resume_path,
+                        resume_bytes,
+                        file_options={"content-type": mime_type, "upsert": "false", "cache-control": "60"},
+                    )
+                except Exception as exc:
+                    logger.error("Résumé upload failed (%s)", type(exc).__name__)
+                    raise HTTPException(status_code=503, detail="The résumé upload service is unavailable. Please try again.") from None
+                app_data["resume_path"] = resume_path
             try:
                 response = supabase.table("applications").insert(app_data).execute()
                 break
             except Exception as exc:
+                _remove_resume(resume_path)
+                resume_path = None
                 message = str(exc)
                 if "APPLICATION_EMAIL_ALREADY_USED" in message:
                     _reject_duplicate_application(app_data["email"], phone, {"email"})
@@ -176,6 +261,7 @@ def create_application(application: ApplicationCreate):
                 raise
 
         if response is None or not response.data:
+            _remove_resume(resume_path)
             raise HTTPException(status_code=400, detail="Failed to submit application")
 
         saved = response.data[0]
@@ -203,6 +289,7 @@ def create_application(application: ApplicationCreate):
     except HTTPException:
         raise
     except Exception as exc:
+        _remove_resume(locals().get("resume_path"))
         logger.error("Application submission failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Could not submit application") from None
 
@@ -263,7 +350,7 @@ def track_application(credentials: TrackRequest, response: Response):
         ) from None
 
 
-@router.get("/", response_model=list[ApplicationResponse])
+@router.get("/")
 def get_applications(job_id: int | None = None, admin: dict = Depends(require_admin)):
     try:
         query = supabase.table("applications").select("*")
@@ -274,6 +361,34 @@ def get_applications(job_id: int | None = None, admin: dict = Depends(require_ad
     except Exception as exc:
         logger.error("Could not load applications (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Could not load applications") from None
+
+
+@router.get("/{application_id}/resume")
+def get_application_resume(application_id: int, response: Response, admin: dict = Depends(require_admin)):
+    """Issue a short-lived link only after verifying staff access."""
+    try:
+        result = (
+            supabase.table("applications").select("resume_path")
+            .eq("id", application_id).limit(1).execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Application not found")
+        path = result.data[0].get("resume_path")
+        if not path:
+            raise HTTPException(status_code=404, detail="No uploaded résumé for this application")
+        signed = supabase.storage.from_(RESUME_BUCKET).create_signed_url(path, 90)
+        signed_url = signed.get("signedURL") or signed.get("signedUrl")
+        if not signed_url:
+            raise HTTPException(status_code=503, detail="Could not open this résumé right now")
+        if signed_url.startswith("/"):
+            signed_url = os.environ["SUPABASE_URL"].rstrip("/") + signed_url
+        response.headers["Cache-Control"] = "no-store"
+        return {"url": signed_url}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Could not create résumé link (%s)", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Could not open this résumé right now") from None
 
 
 @router.get("/{application_id}/activity")

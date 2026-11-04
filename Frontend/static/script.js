@@ -57,8 +57,12 @@ const L2E = (() => {
     try {
       const init = { method, headers: { ...headers }, signal: controller.signal };
       if (body !== undefined) {
-        init.headers["Content-Type"] = "application/json";
-        init.body = JSON.stringify(body);
+        if (body instanceof FormData) {
+          init.body = body;
+        } else {
+          init.headers["Content-Type"] = "application/json";
+          init.body = JSON.stringify(body);
+        }
       }
       if (cache) init.cache = cache;
       return await fetch(API_BASE + path, init);

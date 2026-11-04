@@ -3,6 +3,7 @@ uvicorn
 supabase>=2.20
 pydantic>=2,<3
 email-validator
+python-multipart
 python-dotenv
 resend
 twilio>=9,<10

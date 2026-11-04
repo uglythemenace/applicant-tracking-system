@@ -328,6 +328,25 @@
     }
 
     function resumeCell(app) {
+      if (app.resume_path) {
+        const button = L2E.el('button', { type: 'button', class: 'link-btn', text: 'Open uploaded résumé', 'aria-label': 'Open uploaded résumé for ' + app.candidate_name });
+        button.addEventListener('click', async () => {
+          const tab = window.open('about:blank', '_blank');
+          if (!tab) { L2E.toast('Allow pop-ups to open this résumé.', 'bad'); return; }
+          tab.opener = null;
+          button.disabled = true;
+          try {
+            const res = await L2E.adminFetch('/applications/' + app.id + '/resume');
+            if (!res.ok) throw new Error('open-failed');
+            const result = await res.json();
+            tab.location = result.url;
+          } catch (error) {
+            if (tab) tab.close();
+            L2E.toast('Could not open this résumé. Please try again.', 'bad');
+          } finally { button.disabled = false; }
+        });
+        return button;
+      }
       if (!app.resume_url) return L2E.el('span', { class: 'muted', text: 'None given' });
       // Treat applicant-supplied links as untrusted: only web links are ever clickable.
       try {
