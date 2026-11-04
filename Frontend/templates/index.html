@@ -225,9 +225,9 @@
         const emailSent = created.tracking_email_sent;
         emailNotice.className = 'alert ' + (emailSent === true ? 'alert-good' : emailSent === false ? 'alert-warn' : 'alert-info');
         emailNotice.textContent = emailSent === true
-          ? 'A copy of your tracking code was sent to ' + email + '. If it is not in your inbox shortly, check your spam folder.'
+          ? 'Your tracking email was accepted for ' + email + '. If it does not arrive soon, check your spam folder. Keep the code below as a backup.'
           : emailSent === false
-            ? 'We could not confirm delivery of your tracking code to ' + email + '. Your code is shown below; save it now so you can check your application.'
+            ? 'We could not send the tracking email to ' + email + '. Your application is saved. Save the code below to check your status.'
             : 'Your application was submitted, but this server did not report email delivery. Save your tracking code below and check your inbox and spam folder for a copy.';
         emailNotice.hidden = false;
         const smsNotice = $('sms-delivery-message');

@@ -76,8 +76,8 @@ const L2E = (() => {
 
   // ---------- Header and footer ----------
   const BRAND_ICON =
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 13h18"/></svg>';
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M4 17.5 9.1 12l3.4 3.1L20 7.5"/><path d="M14.5 7.5H20v5.5"/></svg>';
 
   function mountChrome() {
     const page = document.body.dataset.page || "";
@@ -101,6 +101,7 @@ const L2E = (() => {
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
+              <a class="nav-admin" href="/admin"${current("admin")}>Admin</a>
              </nav>
            </div>`;
     }
@@ -112,7 +113,7 @@ const L2E = (() => {
           <nav aria-label="Footer">
             <a href="/jobs">Jobs</a>
             <a href="/track">Check my application</a>
-            <a href="/admin">Staff sign in</a>
+            <a href="/admin">Admin</a>
           </nav>
         </div>`;
     }

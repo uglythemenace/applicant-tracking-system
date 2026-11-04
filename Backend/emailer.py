@@ -4,7 +4,7 @@ import resend
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
-FROM_ADDRESS = os.environ.get("EMAIL_FROM", "Learn2earn <onboarding@resend.dev>")
+FROM_ADDRESS = os.environ.get("EMAIL_FROM", "").strip()
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL", "https://applicant-tracking-system-frontend.vercel.app"
 )
@@ -17,6 +17,9 @@ def _send(to: str, subject: str, body_html: str) -> bool:
     # Email problems must never break an application or a status change.
     if not resend.api_key:
         print("Email skipped: RESEND_API_KEY is not set")
+        return False
+    if not FROM_ADDRESS:
+        print("Email skipped: EMAIL_FROM must be set to an address on a Resend-verified domain")
         return False
     try:
         resend.Emails.send(

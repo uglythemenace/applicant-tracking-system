@@ -618,3 +618,39 @@ body[data-staff="true"] .page-head { padding-top: 44px; }
   .job-footer .btn { width: 100%; }
   .status-details { grid-template-columns: 1fr; gap: 18px; }
 }
+
+/* ---------- Learn2earn brand and clear admin entry ---------- */
+:root {
+  --brand: #17654f;
+  --brand-dark: #104737;
+  --brand-tint: #e5f3ee;
+  --good: #176b4b;
+}
+
+.brand-mark {
+  background: linear-gradient(145deg, #18785b, #104737);
+  border: 1px solid #ffffff24;
+  box-shadow: 0 6px 16px #10473730;
+}
+.nav .nav-admin {
+  min-height: 40px;
+  padding: 0 18px;
+  color: #fff;
+  background: var(--brand);
+  font-weight: 750;
+}
+.nav .nav-admin:hover,
+.nav .nav-admin[aria-current="page"] {
+  color: #fff;
+  background: var(--brand-dark);
+}
+.hero { background: linear-gradient(118deg, #12372d 0%, #173629 58%, #1b4937 100%); }
+.hero::before { background: #c3ef85; }
+.hero .btn-primary { color: #173629; }
+
+@media (max-width: 640px) {
+  .site-header .wrap { gap: 2px 8px; }
+  .nav { gap: 2px; }
+  .nav a, .nav button { padding: 0 9px; font-size: .8rem; }
+  .nav .nav-admin { min-height: 36px; padding: 0 12px; }
+}
