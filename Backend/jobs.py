@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from auth import optional_admin, require_admin
 from database import supabase
-from schemas import JobArchiveUpdate, JobCreate, JobResponse, JobStatusUpdate
+from schemas import JobArchiveUpdate, JobCreate, JobResponse, JobStatusUpdate, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 logger = logging.getLogger(__name__)
@@ -73,6 +73,28 @@ def get_job(job_id: int, admin: dict | None = Depends(optional_admin)):
     except Exception:
         logger.exception("Could not load job")
         raise HTTPException(status_code=500, detail="Could not load job") from None
+
+
+@router.patch("/{job_id}", response_model=JobResponse)
+def update_job(job_id: int, update: JobUpdate, admin: dict = Depends(require_admin)):
+    """Edit job details without changing its open/closed state."""
+    try:
+        current_response = supabase.table("jobs").select("*").eq("id", job_id).limit(1).execute()
+        if not current_response.data:
+            raise HTTPException(status_code=404, detail="Job not found")
+        current = current_response.data[0]
+        merged = {field: current.get(field) for field in JobCreate.model_fields}
+        merged.update(update.model_dump(exclude_unset=True))
+        job_data = JobCreate.model_validate(merged).model_dump()
+        response = supabase.table("jobs").update(job_data).eq("id", job_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Could not update job details")
+        raise HTTPException(status_code=500, detail="Could not update job details") from None
 
 
 @router.patch("/{job_id}/status", response_model=JobResponse)

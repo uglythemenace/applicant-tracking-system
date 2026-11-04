@@ -31,7 +31,7 @@
         <h2 id="jobs-title">Your jobs</h2>
         <div class="two-col">
           <form id="job-form" class="panel" novalidate>
-            <h3>Post a new job</h3>
+            <h3 id="job-form-title">Post a new job</h3>
             <p class="muted">The job shows on the public jobs page right away.</p>
             <div class="field">
               <label for="job-title">Job title (required)</label>
@@ -65,6 +65,7 @@
               <textarea id="job-description" required rows="5" aria-describedby="h-desc"></textarea>
             </div>
             <button type="submit" id="job-submit-btn" class="btn btn-primary btn-block">Post this job</button>
+            <button type="button" id="job-cancel-edit" class="btn btn-secondary btn-block" hidden>Cancel editing</button>
             <div id="job-message" role="status" aria-live="polite" hidden></div>
           </form>
 
@@ -116,6 +117,7 @@
     let applicants = [];
     let filter = 'all';
     let archivedJobsVisible = false;
+    let editingJobId = null;
 
     // ----- Jobs -----
     async function loadJobs() {
@@ -144,7 +146,9 @@
             text: open ? 'Close this job' : 'Reopen this job'
           });
           btn.addEventListener('click', () => setJobStatus(job, open ? 'rejected' : 'approved'));
-          const actions = [btn];
+          const edit = L2E.el('button', { type: 'button', class: 'btn btn-small btn-secondary', 'aria-label': 'Edit ' + job.title, text: 'Edit details' });
+          edit.addEventListener('click', () => editJob(job));
+          const actions = [edit, btn];
           if (!open) {
             const archive = L2E.el('button', {
               type: 'button',
@@ -186,7 +190,7 @@
               L2E.el('span', { class: 'pill pill-muted', text: 'Archived' }),
               L2E.el('span', { class: 'pill', text: job.department || 'General' })),
             L2E.el('p', { class: 'job-desc muted', text: job.description }),
-            L2E.el('div', { class: 'row-actions' }, restore)));
+            L2E.el('div', { class: 'row-actions' }, L2E.el('button', { type: 'button', class: 'btn btn-small btn-secondary', text: 'Edit details', onclick: () => editJob(job) }), restore)));
         });
         renderApplicants(); // job names may have just arrived
       } catch (err) {
@@ -206,11 +210,9 @@
         (title ? $('job-description') : $('job-title')).focus();
         return;
       }
-      btn.disabled = true; btn.textContent = 'Posting…'; msg.hidden = true;
+      btn.disabled = true; btn.textContent = editingJobId ? 'Saving…' : 'Posting…'; msg.hidden = true;
       try {
-        const res = await L2E.adminFetch('/jobs/', {
-          method: 'POST',
-          body: {
+        const body = {
             title, description, department: $('job-department').value.trim() || 'General',
             location: $('job-location').value.trim() || null,
             work_mode: $('job-work-mode').value, employment_type: $('job-employment-type').value,
@@ -220,18 +222,52 @@
             salary_period: $('job-salary-period').value,
             closes_at: $('job-closes-at').value || null,
             response_expectation: $('job-response-expectation').value.trim() || null
-          }
+        };
+        const res = await L2E.adminFetch(editingJobId ? '/jobs/' + editingJobId : '/jobs/', {
+          method: editingJobId ? 'PATCH' : 'POST', body
         });
-        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || 'Failed to post job'); }
-        $('job-form').reset();
-        L2E.toast('Job posted. It is now on the public jobs page.');
+        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || (editingJobId ? 'Failed to update job' : 'Failed to post job')); }
+        const wasEditing = Boolean(editingJobId);
+        resetJobForm();
+        L2E.toast(wasEditing ? 'Job details updated.' : 'Job posted. It is now on the public jobs page.');
         loadJobs();
       } catch (err) {
         console.error('Error posting job:', err);
         msg.className = 'alert alert-bad'; msg.textContent = err.message || "The job wasn't posted. Check the form and try again."; msg.hidden = false;
       } finally {
-        btn.disabled = false; btn.textContent = 'Post this job';
+        btn.disabled = false; btn.textContent = editingJobId ? 'Save job changes' : 'Post this job';
       }
+    }
+
+    function editJob(job) {
+      editingJobId = job.id;
+      $('job-form-title').textContent = 'Edit job details';
+      $('job-submit-btn').textContent = 'Save job changes';
+      $('job-cancel-edit').hidden = false;
+      $('job-title').value = job.title || '';
+      $('job-department').value = job.department || '';
+      $('job-location').value = job.location || '';
+      $('job-work-mode').value = job.work_mode || 'on_site';
+      $('job-employment-type').value = job.employment_type || 'full_time';
+      $('job-salary-min').value = job.salary_min ?? '';
+      $('job-salary-max').value = job.salary_max ?? '';
+      $('job-salary-currency').value = (job.salary_currency || 'USD').trim();
+      $('job-salary-period').value = job.salary_period || 'year';
+      $('job-closes-at').value = job.closes_at || '';
+      $('job-response-expectation').value = job.response_expectation || '';
+      $('job-description').value = job.description || '';
+      $('job-message').hidden = true;
+      $('job-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('job-title').focus();
+    }
+
+    function resetJobForm() {
+      editingJobId = null;
+      $('job-form').reset();
+      $('job-form-title').textContent = 'Post a new job';
+      $('job-submit-btn').textContent = 'Post this job';
+      $('job-cancel-edit').hidden = true;
+      $('job-message').hidden = true;
     }
 
     async function setJobStatus(job, status) {
@@ -438,7 +474,7 @@
 
     function clearAll() {
       applicants = []; jobsById = {}; filter = 'all'; archivedJobsVisible = false;
-      $('job-form').reset();
+      resetJobForm();
       $('job-message').hidden = true;
       $('jobs-list').replaceChildren();
       $('archived-jobs-list').replaceChildren();
@@ -452,6 +488,7 @@
     }
 
     $('job-form').addEventListener('submit', postJob);
+    $('job-cancel-edit').addEventListener('click', resetJobForm);
     $('applicant-search').addEventListener('input', renderApplicants);
     $('applicant-sort').addEventListener('change', renderApplicants);
     $('refresh-btn').addEventListener('click', refreshAll);

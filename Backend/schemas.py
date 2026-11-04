@@ -49,6 +49,21 @@ class JobResponse(JobCreate):
     model_config = ConfigDict(from_attributes=True)
 
 
+class JobUpdate(JobCreate):
+    title: Optional[str] = Field(default=None, min_length=2, max_length=140)
+    description: Optional[str] = Field(default=None, min_length=20, max_length=12000)
+    department: Optional[str] = Field(default=None, max_length=100)
+    location: Optional[str] = Field(default=None, max_length=160)
+    work_mode: Optional[Literal["on_site", "hybrid", "remote"]] = None
+    employment_type: Optional[Literal["full_time", "part_time", "contract", "temporary", "internship"]] = None
+    salary_min: Optional[float] = Field(default=None, ge=0)
+    salary_max: Optional[float] = Field(default=None, ge=0)
+    salary_currency: Optional[str] = Field(default=None, pattern=r"^[A-Z]{3}$")
+    salary_period: Optional[Literal["hour", "day", "week", "month", "year"]] = None
+    closes_at: Optional[str] = None
+    response_expectation: Optional[str] = Field(default=None, max_length=240)
+
+
 class JobStatusUpdate(BaseModel):
     status: Literal["approved", "rejected"]
 
