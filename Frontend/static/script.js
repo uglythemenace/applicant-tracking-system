@@ -82,8 +82,8 @@ const L2E = (() => {
 
   // ---------- Header and footer ----------
   const BRAND_ICON =
-    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M6 12h12"/><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>';
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M7 19V5h5a4 4 0 0 1 0 8H7m5 0 5 6"/></svg>';
 
   function mountChrome() {
     const page = document.body.dataset.page || "";

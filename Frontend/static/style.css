@@ -989,3 +989,14 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .candidate-card { background-color: #f7f9fc; }
 .candidate-drawer { background-color: #f4f7fa; }
 .status-hero { background-color: #e7eef5; }
+
+/* Compact Rolebeam wordmark and a crisp, readable monogram. */
+.brand { font-size: 1rem; font-weight: 700; letter-spacing: -.018em; }
+.brand-mark {
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #4b82b3, #23476f);
+  box-shadow: 0 3px 9px #173c651c;
+}
+.brand-mark svg { width: 20px; height: 20px; }
