@@ -82,8 +82,9 @@ const L2E = (() => {
 
   // ---------- Header and footer ----------
   const BRAND_ICON =
-    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M7 19V5h5a4 4 0 0 1 0 8H7m5 0 5 6"/></svg>';
+    '<svg width="28" height="28" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M6 7h28l-5 8H11L6 7Z"/><path d="M12 18h16l6 8H6l6-8Z"/><path d="M13 31h14"/></svg>';
+  const BRAND_WORDMARK = '<span class="brand-word"><span>Role</span><span class="brand-beam">beam</span></span>';
 
   function mountChrome() {
     const page = document.body.dataset.page || "";
@@ -94,14 +95,14 @@ const L2E = (() => {
     if (header) {
       header.innerHTML = staff
         ? `<div class="wrap">
-             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>Rolebeam <span class="badge-staff">Staff</span></a>
+             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>${BRAND_WORDMARK} <span class="badge-staff">Staff</span></a>
              <nav class="nav" aria-label="Main">
                <a href="/">Public site</a>
                <button type="button" id="sign-out-btn">Sign out</button>
              </nav>
            </div>`
         : `<div class="wrap">
-             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>Rolebeam</a>
+             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>${BRAND_WORDMARK}</a>
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
