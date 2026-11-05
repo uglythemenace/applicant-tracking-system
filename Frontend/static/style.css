@@ -990,15 +990,13 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .candidate-drawer { background-color: #f4f7fa; }
 .status-hero { background-color: #e7eef5; }
 
-/* Compact Rolebeam wordmark and a crisp, readable monogram. */
-.brand { gap: 12px; font-size: 1.4rem; font-weight: 700; letter-spacing: -.025em; }
-.brand-word { display: inline-flex; align-items: baseline; }
-.brand-beam { color: #3975ad; }
-.brand-mark {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #4b82b3, #23476f);
-  box-shadow: 0 3px 9px #173c651c;
+/* Typographic Rolebeam logo: a larger serif R paired with a clean sans wordmark. */
+.brand { gap: 0; font-size: 1.45rem; font-weight: 650; letter-spacing: -.035em; }
+.brand-word { display: inline-flex; align-items: baseline; gap: 1px; }
+.brand-initial {
+  color: var(--brand-dark);
+  font: 700 1.82rem/.9 Georgia, "Times New Roman", serif;
+  letter-spacing: -.06em;
 }
-.brand-mark svg { width: 30px; height: 30px; }
+.brand-name-rest { font: 650 1.45rem/1 var(--sans); }
+.brand .badge-staff { margin-left: 10px; }
