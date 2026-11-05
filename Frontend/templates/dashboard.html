@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff: summary | Learn2earn</title>
+  <title>Staff: summary | TalentFlow AI</title>
   <meta name="robots" content="noindex">
   <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
@@ -12,7 +12,20 @@
   <header id="site-header" class="site-header"></header>
 
   <main id="main">
-    <div class="wrap">
+    <div class="workspace-layout">
+      <aside class="workspace-sidebar" aria-label="Staff navigation">
+        <p class="sidebar-eyebrow">WORKSPACE</p>
+        <nav>
+          <a href="/dashboard" aria-current="page"><span aria-hidden="true">▦</span>Overview</a>
+          <a href="/admin#jobs-title"><span aria-hidden="true">▤</span>Jobs</a>
+          <a href="/admin#apps-title"><span aria-hidden="true">♙</span>Candidates</a>
+          <a href="#analytics"><span aria-hidden="true">▥</span>Analytics</a>
+          <span class="sidebar-disabled" aria-disabled="true"><span aria-hidden="true">✧</span>Automation <small>Later</small></span>
+        </nav>
+        <div class="sidebar-bottom"><span class="sidebar-brand-dot" aria-hidden="true">TF</span><span><strong>TalentFlow AI</strong><small>Recruiting workspace</small></span></div>
+      </aside>
+      <div class="workspace-content">
+      <div class="wrap">
       <div class="page-head">
         <h1>Hiring summary</h1>
         <p>A quick look at how many people applied and where they are. To change a status, go to Jobs and applications.</p>
@@ -28,7 +41,7 @@
         <div class="tile"><p class="tile-num" id="accepted-count">0</p><p class="tile-label">Accepted</p></div>
       </section>
 
-      <section class="section" aria-labelledby="by-status">
+      <section class="section" id="analytics" aria-labelledby="by-status">
         <div class="two-col" style="grid-template-columns:1fr">
           <div class="panel">
             <h2 id="by-status" style="font-size:1.35rem">Applications by status</h2>
@@ -50,6 +63,8 @@
           </table>
         </div>
       </section>
+      </div>
+      </div>
     </div>
   </main>
 

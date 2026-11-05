@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff: jobs and applications | Learn2earn</title>
+  <title>Staff: jobs and applications | TalentFlow AI</title>
   <meta name="robots" content="noindex">
   <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
@@ -12,10 +12,23 @@
   <header id="site-header" class="site-header"></header>
 
   <main id="main">
-    <div class="wrap">
+    <div class="workspace-layout">
+      <aside class="workspace-sidebar" aria-label="Staff navigation">
+        <p class="sidebar-eyebrow">WORKSPACE</p>
+        <nav>
+          <a href="/dashboard"><span aria-hidden="true">▦</span>Overview</a>
+          <a href="#jobs-title"><span aria-hidden="true">▤</span>Jobs</a>
+          <a href="#apps-title" aria-current="page"><span aria-hidden="true">♙</span>Candidates</a>
+          <a href="/dashboard#analytics"><span aria-hidden="true">▥</span>Analytics</a>
+          <span class="sidebar-disabled" aria-disabled="true"><span aria-hidden="true">✧</span>Automation <small>Later</small></span>
+        </nav>
+        <div class="sidebar-bottom"><span class="sidebar-brand-dot" aria-hidden="true">TF</span><span><strong>TalentFlow AI</strong><small>Recruiting workspace</small></span></div>
+      </aside>
+      <div class="workspace-content">
+      <div class="wrap">
       <div class="page-head">
         <h1>Jobs and applications</h1>
-        <p>Post jobs, close filled roles, archive old postings, and review applicants.</p>
+        <p>Manage open roles and move candidates through your hiring pipeline.</p>
         <div class="row" style="margin-top:16px">
           <button type="button" id="refresh-btn" class="btn btn-secondary btn-small">Refresh the lists</button>
         </div>
@@ -88,7 +101,9 @@
           <div class="field"><label for="applicant-search">Find an applicant</label><input id="applicant-search" type="search" placeholder="Search name, email, phone or job"></div>
           <div class="field"><label for="applicant-sort">Order applicants</label><select id="applicant-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></div>
         </div>
-        <div class="table-wrap">
+        <div class="view-toolbar"><span id="candidate-total" class="muted"></span><div class="view-switch" role="group" aria-label="Candidate display"><button type="button" id="board-view-btn" aria-pressed="true">Board</button><button type="button" id="list-view-btn" aria-pressed="false">List</button></div></div>
+        <div id="pipeline-board" class="pipeline-board" aria-label="Hiring pipeline"></div>
+        <div id="applicant-table-wrap" class="table-wrap" hidden>
           <table class="data">
             <thead>
               <tr>
@@ -106,8 +121,17 @@
           </table>
         </div>
       </section>
+      </div>
+      </div>
     </div>
   </main>
+
+  <div id="candidate-drawer-backdrop" class="drawer-backdrop" hidden>
+    <aside id="candidate-drawer" class="candidate-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <div class="drawer-top"><span class="eyebrow">CANDIDATE PROFILE</span><button type="button" id="drawer-close" class="drawer-close" aria-label="Close candidate profile">×</button></div>
+      <div id="candidate-drawer-content"></div>
+    </aside>
+  </div>
 
   <footer id="site-footer" class="site-footer"></footer>
   <script src="/Frontend/static/script.js"></script>
@@ -327,6 +351,151 @@
       }));
     }
 
+    const PIPELINE_STAGES = [
+      ['pending', 'Applied'], ['reviewing', 'Screening'], ['interview', 'Interviewing'],
+      ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']
+    ];
+
+    function setApplicantView(view) {
+      const board = view === 'board';
+      $('pipeline-board').hidden = !board;
+      $('applicant-table-wrap').hidden = board;
+      $('board-view-btn').setAttribute('aria-pressed', String(board));
+      $('list-view-btn').setAttribute('aria-pressed', String(!board));
+    }
+
+    function visibleApplicants() {
+      const query = $('applicant-search').value.trim().toLowerCase();
+      const jobTitle = (a) => jobsById[a.job_id]?.title || '';
+      const shown = applicants.filter(a => (filter === 'all' || a.status === filter) &&
+        (!query || [a.candidate_name, a.email, a.phone_number, jobTitle(a)].join(' ').toLowerCase().includes(query)));
+      if ($('applicant-sort').value === 'oldest') shown.sort((a, b) => a.id - b.id);
+      else if ($('applicant-sort').value === 'name') shown.sort((a, b) => a.candidate_name.localeCompare(b.candidate_name));
+      return shown;
+    }
+
+    function renderPipeline(shown) {
+      const board = $('pipeline-board');
+      board.replaceChildren(...PIPELINE_STAGES.map(([status, label]) => {
+        const cards = shown.filter(app => app.status === status);
+        const list = L2E.el('div', { class: 'pipeline-cards', role: 'list', 'aria-label': label + ' candidates' });
+        cards.forEach(app => {
+          const job = jobsById[app.job_id];
+          const initials = app.candidate_name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+          const open = L2E.el('button', { type: 'button', class: 'candidate-card-open', 'aria-label': 'Open profile for ' + app.candidate_name },
+            L2E.el('span', { class: 'candidate-avatar', 'aria-hidden': 'true', text: initials }),
+            L2E.el('span', { class: 'candidate-card-main' },
+              L2E.el('strong', { text: app.candidate_name }),
+              L2E.el('span', { class: 'candidate-card-job', text: job?.title || 'Job #' + app.job_id })));
+          open.addEventListener('click', () => openCandidateDrawer(app));
+          const card = L2E.el('article', { class: 'candidate-card', draggable: String(app.status !== 'withdrawn'), role: 'listitem', 'data-application-id': app.id },
+            open,
+            L2E.el('div', { class: 'candidate-card-meta' },
+              L2E.el('span', { text: app.email }),
+              L2E.el('span', { text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })));
+          card.addEventListener('dragstart', event => {
+            if (app.status === 'withdrawn') { event.preventDefault(); return; }
+            event.dataTransfer.setData('text/plain', String(app.id));
+            event.dataTransfer.effectAllowed = 'move';
+            card.classList.add('is-dragging');
+          });
+          card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+          list.append(card);
+        });
+        if (!cards.length) list.append(L2E.el('p', { class: 'pipeline-empty', text: 'No candidates here yet' }));
+        const column = L2E.el('section', { class: 'pipeline-column', 'data-drop-status': status, 'aria-label': label + ', ' + cards.length + ' candidates' },
+          L2E.el('header', { class: 'pipeline-column-head' },
+            L2E.el('h3', { text: label }),
+            L2E.el('span', { class: 'stage-count', text: String(cards.length) })),
+          list);
+        column.addEventListener('dragover', event => { event.preventDefault(); column.classList.add('is-drop-target'); });
+        column.addEventListener('dragleave', event => { if (!column.contains(event.relatedTarget)) column.classList.remove('is-drop-target'); });
+        column.addEventListener('drop', async event => {
+          event.preventDefault();
+          column.classList.remove('is-drop-target');
+          if (status === 'withdrawn') return;
+          const app = applicants.find(item => String(item.id) === event.dataTransfer.getData('text/plain'));
+          if (!app || app.status === status || app.status === 'withdrawn') return;
+          if (status === 'accepted' || status === 'rejected') {
+            const ok = await L2E.confirmBox({
+              title: (status === 'accepted' ? 'Move to Hired' : 'Move to Not selected') + '?',
+              message: 'This updates the candidate’s status and appears in their tracking dashboard.',
+              confirmLabel: status === 'accepted' ? 'Mark hired' : 'Mark not selected',
+              danger: status === 'rejected'
+            });
+            if (!ok) return;
+          }
+          updateStatus(app, status);
+        });
+        return column;
+      }));
+    }
+
+    let drawerReturnFocus = null;
+
+    function closeCandidateDrawer() {
+      $('candidate-drawer-backdrop').hidden = true;
+      if (drawerReturnFocus?.isConnected) drawerReturnFocus.focus();
+      drawerReturnFocus = null;
+    }
+
+    function openCandidateDrawer(app) {
+      drawerReturnFocus = document.activeElement;
+      const job = jobsById[app.job_id];
+      const content = $('candidate-drawer-content');
+      const notes = L2E.el('textarea', { rows: '4', maxlength: '10000', 'aria-label': 'Private reviewer notes', placeholder: 'Add context for the hiring team' });
+      notes.value = app.reviewer_notes || '';
+      const interviewDate = L2E.el('input', { type: 'datetime-local', 'aria-label': 'Interview date and time in your local time zone' });
+      if (app.interview_at) { const localDate = new Date(new Date(app.interview_at).getTime() - new Date(app.interview_at).getTimezoneOffset() * 60000); interviewDate.value = localDate.toISOString().slice(0, 16); }
+      const timezone = L2E.el('input', { readonly: true, 'aria-label': 'Interview time zone' });
+      timezone.value = app.interview_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const location = L2E.el('input', { maxlength: '500', 'aria-label': 'Interview location or video link', placeholder: 'Office or video meeting link' });
+      location.value = app.interview_location || '';
+      const reschedule = L2E.el('input', { type: 'url', maxlength: '2048', 'aria-label': 'Interview rescheduling link', placeholder: 'Optional link' });
+      reschedule.value = app.interview_reschedule_url || '';
+      const save = L2E.el('button', { type: 'button', class: 'btn btn-primary btn-small', text: 'Save candidate details' });
+      save.addEventListener('click', () => saveApplicantDetails(app, {
+        reviewer_notes: notes.value,
+        interview_at: interviewDate.value ? new Date(interviewDate.value).toISOString() : null,
+        interview_timezone: timezone.value.trim() || null,
+        interview_location: location.value.trim() || null,
+        interview_reschedule_url: reschedule.value.trim() || null
+      }));
+      const activityList = L2E.el('div', { class: 'activity-list', 'aria-live': 'polite' });
+      const activityButton = L2E.el('button', { type: 'button', class: 'btn btn-secondary btn-small', text: 'Load activity history' });
+      activityButton.addEventListener('click', () => loadActivity(app, activityList));
+      const info = L2E.statusInfo(app.status);
+      content.replaceChildren(
+        L2E.el('div', { class: 'drawer-candidate-head' },
+          L2E.el('span', { class: 'candidate-avatar candidate-avatar-large', 'aria-hidden': 'true', text: app.candidate_name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() }),
+          L2E.el('div', {},
+            L2E.el('h2', { id: 'drawer-title', text: app.candidate_name }),
+            L2E.el('p', { class: 'muted', text: job?.title || 'Job #' + app.job_id }),
+            L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label }))),
+        L2E.el('section', { class: 'drawer-section' },
+          L2E.el('h3', { text: 'Contact' }),
+          L2E.el('p', {}, L2E.el('a', { href: 'mailto:' + app.email, text: app.email })),
+          L2E.el('p', { text: app.phone_number || 'No phone number provided' }),
+          L2E.el('p', { class: 'muted', text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })),
+        L2E.el('section', { class: 'drawer-section' }, L2E.el('h3', { text: 'Résumé' }), resumeCell(app)),
+        L2E.el('div', { class: 'drawer-actions' },
+          actionButton(app, 'reviewing', 'Move to screening', 'btn-secondary'),
+          actionButton(app, 'interview', 'Move to interview', 'btn-secondary'),
+          actionButton(app, 'accepted', 'Mark hired', 'btn-good', 'This status will be visible to the candidate.'),
+          actionButton(app, 'rejected', 'Mark not selected', 'btn-danger', 'This status will be visible to the candidate.')),
+        L2E.el('details', { class: 'drawer-section drawer-details', open: true },
+          L2E.el('summary', { text: 'Private notes and interview' }),
+          L2E.el('div', { class: 'stack' },
+            L2E.el('label', {}, 'Private reviewer notes', notes),
+            L2E.el('label', {}, 'Interview date and time', interviewDate),
+            L2E.el('label', {}, 'Time zone', timezone),
+            L2E.el('label', {}, 'Location or video details', location),
+            L2E.el('label', {}, 'Reschedule link', reschedule), save)),
+        L2E.el('section', { class: 'drawer-section' }, L2E.el('h3', { text: 'Activity' }), activityButton, activityList));
+      $('candidate-drawer-backdrop').hidden = false;
+      $('drawer-close').focus();
+    }
+
     function resumeCell(app) {
       if (app.resume_path) {
         const button = L2E.el('button', { type: 'button', class: 'link-btn', text: 'Open uploaded résumé', 'aria-label': 'Open uploaded résumé for ' + app.candidate_name });
@@ -382,17 +551,14 @@
       $('total-count').textContent = total;
       $('pending-count').textContent = applicants.filter(a => a.status === 'pending').length;
       $('accepted-count').textContent = applicants.filter(a => a.status === 'accepted').length;
+      const shown = visibleApplicants();
+      $('candidate-total').textContent = shown.length + (shown.length === 1 ? ' candidate' : ' candidates');
+      renderPipeline(shown);
       tbody.replaceChildren();
       if (total === 0) {
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No applicants submitted yet.' })));
         return;
       }
-      const query = $('applicant-search').value.trim().toLowerCase();
-      const jobTitle = (a) => jobsById[a.job_id]?.title || '';
-      let shown = applicants.filter(a => (filter === 'all' || a.status === filter) &&
-        (!query || [a.candidate_name, a.email, a.phone_number, jobTitle(a)].join(' ').toLowerCase().includes(query)));
-      if ($('applicant-sort').value === 'oldest') shown.sort((a, b) => a.id - b.id);
-      else if ($('applicant-sort').value === 'name') shown.sort((a, b) => a.candidate_name.localeCompare(b.candidate_name));
       if (shown.length === 0) {
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No one is in this group right now.' })));
         return;
@@ -400,6 +566,8 @@
       shown.forEach(app => {
         const info = L2E.statusInfo(app.status);
         const job = jobsById[app.job_id];
+        const candidateName = L2E.el('button', { type: 'button', class: 'candidate-name-button', 'aria-label': 'Open profile for ' + app.candidate_name, text: app.candidate_name });
+        candidateName.addEventListener('click', () => openCandidateDrawer(app));
         const notes = L2E.el('textarea', { rows: '3', maxlength: '10000', 'aria-label': 'Private reviewer notes for ' + app.candidate_name, placeholder: 'Private notes for the hiring team' });
         notes.value = app.reviewer_notes || '';
         const interviewDate = L2E.el('input', { type: 'datetime-local', 'aria-label': 'Interview date and time in this browser’s local time zone for ' + app.candidate_name });
@@ -423,7 +591,7 @@
             saveDetails, activity, activityList));
         tbody.append(L2E.el('tr', {},
           L2E.el('td', { 'data-label': 'Applicant' },
-            L2E.el('span', { class: 'who' }, app.candidate_name, L2E.el('span', { class: 'sub', text: app.email }), app.created_at ? L2E.el('span', { class: 'sub', text: 'Applied ' + L2E.formatDate(app.created_at) }) : null)),
+            L2E.el('span', { class: 'who' }, candidateName, L2E.el('span', { class: 'sub', text: app.email }), app.created_at ? L2E.el('span', { class: 'sub', text: 'Applied ' + L2E.formatDate(app.created_at) }) : null)),
           L2E.el('td', { 'data-label': 'Phone' },
             app.phone_number || 'Not provided',
             app.phone_number && app.sms_updates_consent ? L2E.el('span', { class: 'sub', text: 'Opted in to texts' }) : null),
@@ -482,6 +650,7 @@
         const res = await L2E.adminFetch('/applications/' + app.id, { method: 'PATCH', body: { status } });
         if (!res.ok) throw new Error('bad status');
         L2E.toast(app.candidate_name + ' is now: ' + L2E.statusInfo(status).label + '.');
+        if (!$('candidate-drawer-backdrop').hidden) closeCandidateDrawer();
         loadApplicants();
       } catch (err) {
         console.error('Error updating candidate status:', err);
@@ -493,6 +662,8 @@
 
     function clearAll() {
       applicants = []; jobsById = {}; filter = 'all'; archivedJobsVisible = false;
+      $('pipeline-board').replaceChildren();
+      closeCandidateDrawer();
       resetJobForm();
       $('job-message').hidden = true;
       $('jobs-list').replaceChildren();
@@ -510,6 +681,20 @@
     $('job-cancel-edit').addEventListener('click', resetJobForm);
     $('applicant-search').addEventListener('input', renderApplicants);
     $('applicant-sort').addEventListener('change', renderApplicants);
+    $('board-view-btn').addEventListener('click', () => setApplicantView('board'));
+    $('list-view-btn').addEventListener('click', () => setApplicantView('list'));
+    $('drawer-close').addEventListener('click', closeCandidateDrawer);
+    $('candidate-drawer-backdrop').addEventListener('click', event => { if (event.target === $('candidate-drawer-backdrop')) closeCandidateDrawer(); });
+    document.addEventListener('keydown', event => {
+      if ($('candidate-drawer-backdrop').hidden) return;
+      if (event.key === 'Escape') { closeCandidateDrawer(); return; }
+      if (event.key !== 'Tab') return;
+      const focusable = [...$('candidate-drawer').querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), summary')];
+      if (!focusable.length) return;
+      const first = focusable[0]; const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
     $('refresh-btn').addEventListener('click', refreshAll);
     $('toggle-archived-btn').addEventListener('click', () => {
       archivedJobsVisible = !archivedJobsVisible;
@@ -518,6 +703,7 @@
       $('toggle-archived-btn').textContent = (archivedJobsVisible ? 'Hide' : 'Show') + ' archived jobs (' + $('toggle-archived-btn').dataset.count + ')';
     });
     L2E.startStaff(refreshAll, clearAll);
+    setApplicantView('board');
   </script>
 </body>
 </html>

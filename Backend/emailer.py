@@ -13,7 +13,7 @@ FROM_ADDRESS = os.environ.get("EMAIL_FROM", "").strip()
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
 SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
 SMTP_APP_PASSWORD = os.environ.get("SMTP_APP_PASSWORD", "").replace(" ", "")
-SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Learn2earn Careers").strip()
+SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "TalentFlow AI Careers").strip()
 try:
     SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 except ValueError:
@@ -58,7 +58,7 @@ def _send_smtp(to: str, subject: str, body_html: str) -> bool:
     message["Subject"] = subject
     message["From"] = formataddr((SMTP_FROM_NAME, SMTP_USERNAME))
     message["To"] = to
-    message.set_content("This message contains your Learn2earn application update. Please view it in an HTML-capable email app.")
+    message.set_content("This message contains your TalentFlow AI application update. Please view it in an HTML-capable email app.")
     message.add_alternative(body_html, subtype="html")
 
     try:
@@ -88,7 +88,7 @@ def _wrap(content: str) -> str:
     return f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#222;line-height:1.5">
       {content}
-      <p style="color:#888;font-size:12px;margin-top:32px">Learn2earn Careers</p>
+      <p style="color:#888;font-size:12px;margin-top:32px">TalentFlow AI Careers</p>
     </div>"""
 
 
@@ -129,7 +129,7 @@ def _send_sms(to: str, body: str) -> bool:
 def send_application_received_sms(to: str, job_title: str, code: str) -> bool:
     track_url = f"{FRONTEND_URL}/track"
     body = (
-        f"Learn2earn: We received your application for {job_title}. "
+        f"TalentFlow AI: We received your application for {job_title}. "
         f"Tracking code: {code}. Check your status at {track_url} using your email and code. Reply STOP to stop texts."
     )
     return _send_sms(to, body)
@@ -153,7 +153,7 @@ def send_status_update(to: str, name: str, job_title: str, status: str, code: st
 def send_status_sms(to: str, job_title: str, status: str) -> bool:
     label = "accepted" if status.strip().lower() in {"accepted", "approved", "hired", "offer", "offered"} else "rejected"
     body = (
-        f"Learn2earn update: Your application for {job_title} has been {label}. "
+        f"TalentFlow AI update: Your application for {job_title} has been {label}. "
         "Check your email for details from the hiring team. Reply STOP to stop texts."
     )
     return _send_sms(to, body)

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Learn2earn shared script. Loaded by every page.
+   TalentFlow AI shared script. Loaded by every page.
 
    - API_BASE: the one place the backend address lives. To test against a
      different backend, change it here and nowhere else.
@@ -94,16 +94,14 @@ const L2E = (() => {
     if (header) {
       header.innerHTML = staff
         ? `<div class="wrap">
-             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>Learn2earn <span class="badge-staff">Staff</span></a>
+             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>TalentFlow AI <span class="badge-staff">Staff</span></a>
              <nav class="nav" aria-label="Main">
-               <a href="/admin"${current("admin")}>Jobs and applications</a>
-               <a href="/dashboard"${current("dashboard")}>Summary</a>
                <a href="/">Public site</a>
                <button type="button" id="sign-out-btn">Sign out</button>
              </nav>
            </div>`
         : `<div class="wrap">
-             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>Learn2earn</a>
+             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>TalentFlow AI</a>
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
@@ -114,7 +112,7 @@ const L2E = (() => {
     const footer = document.getElementById("site-footer");
     if (footer) {
       footer.innerHTML = `<div class="wrap footer-row">
-          <p>&copy; ${new Date().getFullYear()} Learn2earn</p>
+          <p>&copy; ${new Date().getFullYear()} TalentFlow AI</p>
           <nav aria-label="Footer">
             <a href="/jobs">Jobs</a>
             <a href="/track">Check my application</a>

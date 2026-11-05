@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apply for a job | Learn2earn</title>
+  <title>Apply for a job | TalentFlow AI</title>
   <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
 <body data-page="apply">
@@ -18,7 +18,7 @@
         <div class="page-head">
           <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> TAKE THE NEXT STEP</p>
           <h1>Apply for a job</h1>
-          <p>Share a few details with the hiring team. It takes about five minutes.</p>
+          <p>Share a few details with the hiring team. Add your résumé as a file or link if you have one.</p>
         </div>
 
         <div id="job-notice" role="status"></div>
@@ -59,7 +59,13 @@
           <div class="field" id="f-cv">
             <label for="candidate-cv-file">Résumé file (optional)</label>
             <span class="hint" id="h-cv">Upload a PDF or Word document (up to 8 MB), or paste a link below. Choose one option. Only the hiring team can access an uploaded file.</span>
-            <input type="file" id="candidate-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="h-cv e-cv">
+            <div class="resume-dropzone" id="resume-dropzone">
+              <span class="dropzone-icon" aria-hidden="true">↑</span>
+              <strong>Drop your résumé here</strong>
+              <span class="muted">PDF or DOCX, up to 8 MB</span>
+              <input type="file" id="candidate-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="h-cv e-cv">
+            </div>
+            <p id="resume-file-name" class="resume-file-name" aria-live="polite"></p>
             <label for="candidate-cv" class="sub-label" style="display:block;margin-top:12px">Or paste a résumé link</label>
             <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="https://…" aria-describedby="h-cv e-cv">
             <p class="error-text" id="e-cv">Choose a PDF or DOCX file up to 8 MB, or enter a valid web link, but not both.</p>
@@ -262,6 +268,7 @@
         $('form-card').hidden = true;
         $('success-card').hidden = false;
         $('apply-form').reset();
+        $('resume-file-name').textContent = '';
         $('success-heading').focus();
         window.scrollTo(0, 0);
       } catch (err) {
@@ -320,7 +327,19 @@
     // Clear a box's error as soon as the person starts fixing it.
     [['f-name', 'candidate-name'], ['f-email', 'candidate-email'], ['f-phone', 'candidate-phone'], ['f-cv', 'candidate-cv'], ['f-job', 'job-id']].forEach(([f, i]) =>
       $(i).addEventListener('input', () => setError(f, $(i), false)));
-    $('candidate-cv-file').addEventListener('change', () => setError('f-cv', $('candidate-cv'), false));
+    const resumeDropzone = $('resume-dropzone');
+    const resumeFileInput = $('candidate-cv-file');
+    resumeFileInput.addEventListener('change', () => {
+      setError('f-cv', $('candidate-cv'), false);
+      $('resume-file-name').textContent = resumeFileInput.files[0] ? 'Selected: ' + resumeFileInput.files[0].name : '';
+    });
+    ['dragenter', 'dragover'].forEach(type => resumeDropzone.addEventListener(type, event => { event.preventDefault(); resumeDropzone.classList.add('is-dragover'); }));
+    ['dragleave', 'drop'].forEach(type => resumeDropzone.addEventListener(type, event => { event.preventDefault(); resumeDropzone.classList.remove('is-dragover'); }));
+    resumeDropzone.addEventListener('drop', event => {
+      if (!event.dataTransfer.files.length) return;
+      resumeFileInput.files = event.dataTransfer.files;
+      resumeFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     $('sms-updates-opt-in').addEventListener('change', () => setError('f-phone', $('candidate-phone'), false));
     loadJobs();
   </script>

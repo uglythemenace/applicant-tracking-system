@@ -1,18 +1,20 @@
-# Learn2earn Applicant Tracking System
+# TalentFlow AI Applicant Tracking System
 
-A simple careers site and FastAPI backend for posting jobs, receiving applications, and tracking application status.
+A candidate careers portal and recruiter workspace for posting jobs, receiving applications, and moving candidates through a hiring pipeline.
 
 ## Priority fixes in this copy
 
 - Public job endpoints return open, unexpired jobs only. Individual job pages show clear details and search-engine structured job data.
 - Staff can archive closed jobs from the main list and restore them later; archiving preserves their application history.
 - The admin dashboard includes applicant search and sorting, private notes, interview details, an activity log, and individual Supabase Auth sign-in.
+- The recruiter workspace uses a draggable hiring board with a list-view fallback and a candidate profile drawer for résumé access, private notes, interview details, and status changes.
 - Applications require a non-blank name and a valid email; résumé links must use HTTP or HTTPS. The backend rejects applications to closed or missing jobs.
 - Tracking lookups use a JSON POST request instead of putting the email and code in the request URL. New tracking links no longer put the code in the page address.
 - Applicants can view recorded status changes and interview details on their private tracking dashboard.
 - Form labels, error announcements, contrast, mobile navigation, and small-screen job cards were improved.
 - The site was redesigned for everyday readers: large text, big buttons, plain words, confirmation before Accept, Reject and Close, a phone-friendly layout, and a friendly "server is waking up" message. The public pages use the shared `Frontend/static/style.css` stylesheet.
 - Applicant email and optional consent-based SMS notifications are supported. Phone and email reuse are blocked by a database trigger, with a ten-minute cooldown after repeated duplicate attempts.
+- AI résumé parsing and candidate scoring, a unified team inbox, trigger-based messaging, and Google or Outlook calendar sync are not connected yet; the interface does not claim those integrations are active.
 
 ## Important: deploy the frontend and backend together
 
