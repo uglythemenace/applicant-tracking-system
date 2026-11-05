@@ -82,9 +82,9 @@ const L2E = (() => {
 
   // ---------- Header and footer ----------
   const BRAND_ICON =
-    '<svg width="50" height="50" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M16 49V15h14a11 11 0 1 1 0 22H16m12 0 17 12"/>' +
-    '<path d="M36 26h17M38 20h11M38 32h11"/></svg>';
+    '<svg width="50" height="50" viewBox="0 0 64 64" fill="none" aria-hidden="true">' +
+    '<path d="M17 48V16h14a10 10 0 0 1 0 20H17m14 0 16 12" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<path d="M40 21h9M43 28h10M40 35h9" stroke="#91D8FF" stroke-width="3" stroke-linecap="round"/></svg>';
   const BRAND_WORDMARK = '<span class="brand-word"><span class="brand-initial">R</span><span class="brand-name-rest">olebeam</span></span>';
 
   function mountChrome() {
