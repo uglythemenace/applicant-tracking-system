@@ -81,6 +81,10 @@ const L2E = (() => {
   }
 
   // ---------- Header and footer ----------
+  const BRAND_ICON =
+    '<svg width="36" height="36" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="8" y="17" width="7" height="14" rx="2" fill="currentColor" stroke="none"/>' +
+    '<path d="M23 17 38 9M23 24h19M23 31l15 8"/></svg>';
   const BRAND_WORDMARK = '<span class="brand-word"><span class="brand-initial">R</span><span class="brand-name-rest">olebeam</span></span>';
 
   function mountChrome() {
@@ -92,14 +96,14 @@ const L2E = (() => {
     if (header) {
       header.innerHTML = staff
         ? `<div class="wrap">
-             <a class="brand" href="/admin">${BRAND_WORDMARK}<span class="badge-staff">Staff</span></a>
+             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>${BRAND_WORDMARK}<span class="badge-staff">Staff</span></a>
              <nav class="nav" aria-label="Main">
                <a href="/">Public site</a>
                <button type="button" id="sign-out-btn">Sign out</button>
              </nav>
            </div>`
         : `<div class="wrap">
-             <a class="brand" href="/">${BRAND_WORDMARK}</a>
+             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>${BRAND_WORDMARK}</a>
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>

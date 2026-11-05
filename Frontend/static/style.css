@@ -991,7 +991,7 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .status-hero { background-color: #e7eef5; }
 
 /* Typographic Rolebeam logo: a larger serif R paired with a clean sans wordmark. */
-.brand { gap: 0; font-size: 1.45rem; font-weight: 650; letter-spacing: -.035em; }
+.brand { gap: 14px; font-size: 1.45rem; font-weight: 650; letter-spacing: -.035em; }
 .brand-word { display: inline-flex; align-items: baseline; gap: 1px; }
 .brand-initial {
   color: var(--brand-dark);
@@ -999,4 +999,16 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
   letter-spacing: -.06em;
 }
 .brand-name-rest { font: 650 1.45rem/1 var(--sans); }
+.brand-mark {
+  display: grid;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(145deg, #4b82b3, #23476f);
+  box-shadow: 0 4px 12px #173c6520;
+}
+.brand-mark svg { display: block; width: 36px; height: 36px; }
 .brand .badge-staff { margin-left: 10px; }
