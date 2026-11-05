@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Job details | TalentFlow AI</title>
-  <meta name="description" content="Read the job details and apply online with TalentFlow AI.">
+  <title>Job details | TalentFlow</title>
+  <meta name="description" content="Read the job details and apply online with TalentFlow.">
   <link rel="stylesheet" href="/Frontend/static/style.css">
 </head>
 <body data-page="jobs">
@@ -40,15 +40,15 @@
           job.response_expectation ? L2E.el('p', { class: 'alert alert-info', text: 'When to expect an update: ' + job.response_expectation }) : null,
           L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), text: 'Apply for this role' })
         );
-        document.title = job.title + ' | TalentFlow AI';
+        document.title = job.title + ' | TalentFlow';
         const orgUrl = location.origin;
         const schemaEmployment = ({ full_time: 'FULL_TIME', part_time: 'PART_TIME', contract: 'CONTRACTOR', temporary: 'TEMPORARY', internship: 'INTERN' })[job.employment_type] || 'FULL_TIME';
         const structured = {
           '@context': 'https://schema.org', '@type': 'JobPosting', title: job.title,
           description: job.description, datePosted: job.created_at,
           employmentType: schemaEmployment,
-          hiringOrganization: { '@type': 'Organization', name: 'TalentFlow AI', sameAs: orgUrl },
-          identifier: { '@type': 'PropertyValue', name: 'TalentFlow AI', value: String(job.id) },
+          hiringOrganization: { '@type': 'Organization', name: 'TalentFlow', sameAs: orgUrl },
+          identifier: { '@type': 'PropertyValue', name: 'TalentFlow', value: String(job.id) },
           ...(job.closes_at ? { validThrough: new Date(job.closes_at + 'T23:59:59Z').toISOString() } : {}),
           ...(job.work_mode === 'remote' ? { jobLocationType: 'TELECOMMUTE' } : job.location ? { jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: job.location } } } : {}),
           ...(job.salary_min != null || job.salary_max != null ? { baseSalary: { '@type': 'MonetaryAmount', currency: job.salary_currency || 'USD', value: { '@type': 'QuantitativeValue', minValue: job.salary_min, maxValue: job.salary_max, unitText: String(job.salary_period || 'YEAR').toUpperCase() } } } : {})
