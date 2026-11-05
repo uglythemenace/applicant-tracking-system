@@ -57,8 +57,8 @@
   <script src="/Frontend/static/script.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const ORDER = ['pending', 'reviewing', 'interview', 'accepted', 'rejected'];
-    const BAR_TONE = { pending: 'is-warn', reviewing: '', interview: '', accepted: 'is-good', rejected: 'is-bad' };
+    const ORDER = ['pending', 'reviewing', 'interview', 'accepted', 'rejected', 'withdrawn'];
+    const BAR_TONE = { pending: 'is-warn', reviewing: '', interview: '', accepted: 'is-good', rejected: 'is-bad', withdrawn: '' };
 
     function render(apps) {
       const total = apps.length;

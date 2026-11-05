@@ -17,6 +17,7 @@ const L2E = (() => {
     interview: { label: "Interview stage",    tone: "info" },
     accepted:  { label: "Accepted",           tone: "good" },
     rejected:  { label: "Not selected",       tone: "bad"  },
+    withdrawn: { label: "Withdrawn",          tone: "muted" },
   };
   const statusInfo = (s) => STATUS[String(s || "").toLowerCase()] || { label: String(s || "Unknown"), tone: "muted" };
 

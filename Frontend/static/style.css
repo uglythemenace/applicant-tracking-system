@@ -591,6 +591,7 @@ body[data-staff="true"] .page-head { padding-top: 44px; }
 .status-hero::after { content: ""; position: absolute; width: 260px; height: 260px; right: -110px; top: -175px; border-radius: 50%; border: 1px solid #ffffff30; box-shadow: 0 0 0 28px #ffffff0a, 0 0 0 58px #ffffff08; }
 .status-hero.status-accepted { background: #176746; }
 .status-hero.status-rejected { background: #4a3433; }
+.status-hero.status-withdrawn { background: #42566a; }
 .status-orb { width: 13px; height: 13px; margin-top: 6px; border-radius: 50%; background: #c3f17d; box-shadow: 0 0 0 6px #c3f17d24; }
 .status-rejected .status-orb { background: #f3b0a9; box-shadow: 0 0 0 6px #f3b0a924; }
 .status-kicker { margin: 0 0 10px; color: #c3f17d; font-size: .72rem; font-weight: 800; letter-spacing: .16em; }
@@ -760,12 +761,15 @@ body[data-staff="true"] .site-header { background: #f3f7fb; }
 .status-hero::after { border-color: #24578c24; box-shadow: 0 0 0 28px #24578c08, 0 0 0 58px #24578c05; }
 .status-hero.status-accepted { background: linear-gradient(130deg, #dce9f6, #edf3fa); }
 .status-hero.status-rejected { background: linear-gradient(130deg, #fff1f1, #fffafa); border-color: #efd4d4; }
+.status-hero.status-withdrawn { background: linear-gradient(130deg, #e1e9f1, #edf2f7); border-color: #cbd7e2; }
 .status-orb { background: #4b84be; box-shadow: 0 0 0 6px #4b84be20; }
 .status-rejected .status-orb { background: #b44d51; box-shadow: 0 0 0 6px #b44d5120; }
 .status-kicker { color: var(--brand); }
 .status-summary { color: var(--ink-soft); }
 .next-step { border-color: #cbd9e8; background: #e4edf7; }
 .next-step-icon { color: var(--brand-dark); background: #cfdeee; }
+.withdraw-confirm { width: 100%; padding: 20px; background: #e7eef6; }
+.withdraw-confirm p { color: var(--ink-soft); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

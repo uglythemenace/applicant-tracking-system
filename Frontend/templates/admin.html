@@ -315,7 +315,7 @@
     }
 
     // ----- Applications -----
-    const FILTERS = [['all', 'Everyone'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected']];
+    const FILTERS = [['all', 'Everyone'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
 
     function renderFilters() {
       const box = $('filters');
@@ -360,7 +360,7 @@
 
     function actionButton(app, status, label, cls, confirmText) {
       const btn = L2E.el('button', { type: 'button', class: 'btn btn-small ' + cls, 'aria-label': label + ': ' + app.candidate_name, text: label });
-      btn.disabled = app.status === status;
+      btn.disabled = app.status === status || app.status === 'withdrawn';
       btn.addEventListener('click', async () => {
         if (confirmText) {
           const ok = await L2E.confirmBox({

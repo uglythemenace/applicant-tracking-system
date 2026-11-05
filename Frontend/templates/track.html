@@ -48,13 +48,17 @@
       result.replaceChildren(L2E.el('div', { class: 'alert alert-' + tone }, L2E.el('strong', { text: title }), text ? L2E.el('p', { text }) : null, extra));
     }
 
-    function renderResult(data) {
+    function renderResult(data, credentials) {
       const raw = String(data.status || '').trim().toLowerCase();
       const accepted = ['accepted', 'hired', 'approved', 'offer', 'offered'].includes(raw);
       const rejected = ['rejected', 'declined', 'not selected', 'unsuccessful'].includes(raw);
-      const state = accepted ? 'accepted' : rejected ? 'rejected' : 'awaiting';
-      const title = accepted ? 'Accepted' : rejected ? 'Rejected' : 'Awaiting review';
-      const message = accepted
+      const withdrawn = raw === 'withdrawn';
+      const canWithdraw = ['pending', 'reviewing', 'interview', 'interviewing'].includes(raw);
+      const state = accepted ? 'accepted' : rejected ? 'rejected' : withdrawn ? 'withdrawn' : 'awaiting';
+      const title = accepted ? 'Accepted' : rejected ? 'Rejected' : withdrawn ? 'Application withdrawn' : 'Awaiting review';
+      const message = withdrawn
+        ? 'You withdrew this application. The hiring team will no longer consider you for this role.'
+        : accepted
         ? 'The hiring team has accepted your application. Check this page for any interview details or next steps.'
         : rejected
           ? 'The hiring team has decided not to move forward with this application. Thank you for your interest.'
@@ -94,8 +98,8 @@
       const nextStep = L2E.el('div', { class: 'next-step' },
         L2E.el('span', { class: 'next-step-icon', 'aria-hidden': 'true', text: accepted ? '✓' : rejected ? '↗' : '…' }),
         L2E.el('div', {},
-          L2E.el('strong', { text: accepted ? 'What happens next' : rejected ? 'Keep exploring' : 'Nothing else needed right now' }),
-          L2E.el('p', { text: accepted ? 'Review this dashboard for interview details and next steps.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'Check this dashboard again for status changes.' })));
+          L2E.el('strong', { text: withdrawn ? 'What happens next' : accepted ? 'What happens next' : rejected ? 'Keep exploring' : 'Nothing else needed right now' }),
+          L2E.el('p', { text: withdrawn ? 'You can apply for another open role whenever you’re ready.' : accepted ? 'Review this dashboard for interview details and next steps.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'Check this dashboard again for status changes.' })));
       const another = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Check another application' });
       another.addEventListener('click', () => {
         dashboard.hidden = true;
@@ -104,7 +108,49 @@
         result.replaceChildren();
         document.getElementById('email').focus();
       });
-      dashboard.replaceChildren(statusCard, details, responseNote, timeline, interview, nextStep, L2E.el('div', { class: 'status-actions' }, another));
+      const actions = L2E.el('div', { class: 'status-actions' });
+      if (canWithdraw) {
+        const withdrawButton = L2E.el('button', { type: 'button', class: 'btn btn-plain', text: 'Withdraw application' });
+        withdrawButton.addEventListener('click', () => {
+          const feedback = L2E.el('p', { role: 'alert', class: 'muted' });
+          const cancel = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Keep my application' });
+          const confirm = L2E.el('button', { type: 'button', class: 'btn btn-danger', text: 'Confirm withdrawal' });
+          cancel.addEventListener('click', () => { actions.replaceChildren(withdrawButton, another); withdrawButton.focus(); });
+          confirm.addEventListener('click', async () => {
+            confirm.disabled = true;
+            cancel.disabled = true;
+            feedback.textContent = 'Withdrawing your application…';
+            try {
+              const response = await L2E.request('/applications/withdraw', {
+                method: 'POST', body: credentials, cache: 'no-store',
+                onSlow: () => { feedback.textContent = L2E.WAKE_NOTE; }
+              });
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'We could not withdraw the application. Please try again.');
+              }
+              const withdrawal = await response.json();
+              data.status = withdrawal.status;
+              data.history = [...history, { status: withdrawal.status, changed_at: withdrawal.changed_at }];
+              renderResult(data, credentials);
+            } catch (error) {
+              feedback.textContent = error.message || 'We could not withdraw the application. Please try again.';
+              confirm.disabled = false;
+              cancel.disabled = false;
+            }
+          });
+          actions.replaceChildren(
+            L2E.el('div', { class: 'withdraw-confirm panel' },
+              L2E.el('strong', { text: 'Withdraw this application?' }),
+              L2E.el('p', { text: 'This will let the hiring team know you no longer want to be considered for this role. You cannot undo this action here.' }),
+              feedback,
+              L2E.el('div', { class: 'row' }, cancel, confirm)));
+          confirm.focus();
+        });
+        actions.append(withdrawButton);
+      }
+      actions.append(another);
+      dashboard.replaceChildren(statusCard, details, responseNote, timeline, interview, nextStep, actions);
       document.getElementById('lookup-card').hidden = true;
       dashboard.hidden = false;
       dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -133,7 +179,7 @@
           return;
         }
         if (!response.ok) throw new Error('Request failed');
-        renderResult(await response.json());
+        renderResult(await response.json(), { email, code });
       } catch (error) {
         console.error('Tracking error:', error);
         showAlert('bad', 'Something went wrong on our side.', 'Wait a few seconds and press the button again. Your application is safe.');

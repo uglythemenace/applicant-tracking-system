@@ -160,3 +160,8 @@ class TrackResponse(BaseModel):
     interview_timezone: Optional[str] = None
     interview_location: Optional[str] = None
     interview_reschedule_url: Optional[str] = None
+
+
+class WithdrawResponse(BaseModel):
+    status: Literal["withdrawn"]
+    changed_at: str

@@ -26,6 +26,7 @@ from schemas import (
     ApplicationUpdate,
     TrackRequest,
     TrackResponse,
+    WithdrawResponse,
 )
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
@@ -350,6 +351,71 @@ def track_application(credentials: TrackRequest, response: Response):
         ) from None
 
 
+@router.post("/withdraw", response_model=WithdrawResponse)
+def withdraw_application(credentials: TrackRequest, response: Response):
+    """Let a candidate withdraw after proving possession of email and tracking code."""
+    response.headers["Cache-Control"] = "no-store"
+    not_found = HTTPException(
+        status_code=404,
+        detail="No application found. Check your email and tracking code.",
+        headers={"Cache-Control": "no-store"},
+    )
+    eligible_statuses = ["pending", "reviewing", "interview"]
+    try:
+        result = (
+            supabase.table("applications")
+            .select("id, status, email, status_updated_at")
+            .eq("tracking_code", credentials.code.strip().upper())
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            raise not_found
+        record = result.data[0]
+        if (record.get("email") or "").strip().lower() != credentials.email.strip().lower():
+            raise not_found
+        if record.get("status") == "withdrawn":
+            return {"status": "withdrawn", "changed_at": record.get("status_updated_at") or datetime.now(timezone.utc).isoformat()}
+        if record.get("status") not in eligible_statuses:
+            raise HTTPException(status_code=409, detail="This application can no longer be withdrawn.")
+
+        changed_at = datetime.now(timezone.utc).isoformat()
+        updated = (
+            supabase.table("applications")
+            .update({"status": "withdrawn", "status_updated_at": changed_at})
+            .eq("id", record["id"])
+            .in_("status", eligible_statuses)
+            .execute()
+        )
+        if not updated.data:
+            latest = supabase.table("applications").select("status, status_updated_at").eq("id", record["id"]).limit(1).execute()
+            latest_record = (latest.data or [{}])[0]
+            if latest_record.get("status") == "withdrawn":
+                return {"status": "withdrawn", "changed_at": latest_record.get("status_updated_at") or changed_at}
+            raise HTTPException(status_code=409, detail="The application status changed, so it could not be withdrawn. Refresh the page and check the latest status.")
+
+        try:
+            supabase.table("application_status_history").insert({
+                "application_id": record["id"], "status": "withdrawn", "changed_at": changed_at,
+            }).execute()
+            supabase.table("application_audit_log").insert({
+                "application_id": record["id"],
+                "actor_email": credentials.email.strip().lower(),
+                "action": "candidate_withdrew",
+                "old_status": record["status"],
+                "new_status": "withdrawn",
+                "metadata": {"source": "candidate_tracking"},
+            }).execute()
+        except Exception:
+            logger.exception("Could not record candidate withdrawal activity")
+        return {"status": "withdrawn", "changed_at": changed_at}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Application withdrawal failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Could not withdraw the application. Please try again.", headers={"Cache-Control": "no-store"}) from None
+
+
 @router.get("/")
 def get_applications(job_id: int | None = None, admin: dict = Depends(require_admin)):
     try:
@@ -417,6 +483,8 @@ def update_application_status(
             raise HTTPException(status_code=404, detail="Application not found")
         current = current_response.data[0]
         changes = update_data.model_dump(exclude_unset=True)
+        if current.get("status") == "withdrawn" and changes.get("status") not in (None, "withdrawn"):
+            raise HTTPException(status_code=409, detail="A withdrawn application cannot be reopened.")
         if "interview_reschedule_url" in changes and changes["interview_reschedule_url"]:
             parsed = urlsplit(changes["interview_reschedule_url"])
             if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -429,8 +497,14 @@ def update_application_status(
             changes.pop("status", None)
         if status_changed:
             changes["status_updated_at"] = datetime.now(timezone.utc).isoformat()
-        response = supabase.table("applications").update(changes).eq("id", application_id).execute()
+        update_query = supabase.table("applications").update(changes).eq("id", application_id)
+        if changes.get("status"):
+            update_query = update_query.neq("status", "withdrawn")
+        response = update_query.execute()
         if not response.data:
+            latest = supabase.table("applications").select("status").eq("id", application_id).limit(1).execute()
+            if latest.data and latest.data[0].get("status") == "withdrawn":
+                raise HTTPException(status_code=409, detail="A withdrawn application cannot be reopened.")
             raise HTTPException(status_code=404, detail="Application not found")
 
         saved = response.data[0]
