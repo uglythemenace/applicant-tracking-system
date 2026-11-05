@@ -120,6 +120,14 @@
             </tbody>
           </table>
         </div>
+        <div id="applicant-pagination" class="applicant-pagination" role="group" aria-label="Applicant list pages" hidden>
+          <span id="applicant-page-summary" class="muted" aria-live="polite"></span>
+          <div class="pagination-actions">
+            <button type="button" id="applicant-prev-page" class="btn btn-secondary btn-small">Previous</button>
+            <span id="applicant-page-number" class="muted"></span>
+            <button type="button" id="applicant-next-page" class="btn btn-secondary btn-small">Next</button>
+          </div>
+        </div>
       </section>
       </div>
       </div>
@@ -340,13 +348,16 @@
 
     // ----- Applications -----
     const FILTERS = [['all', 'Everyone'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
+    const APPLICANTS_PER_PAGE = 10;
+    let applicantPage = 1;
+    const pipelinePages = Object.create(null);
 
     function renderFilters() {
       const box = $('filters');
       box.replaceChildren(...FILTERS.map(([value, label]) => {
         const n = value === 'all' ? applicants.length : applicants.filter(a => a.status === value).length;
         const chip = L2E.el('button', { type: 'button', class: 'chip', 'aria-pressed': String(filter === value), text: label + ' (' + n + ')' });
-        chip.addEventListener('click', () => { filter = value; renderFilters(); renderApplicants(); });
+        chip.addEventListener('click', () => { filter = value; applicantPage = 1; resetPipelinePages(); renderFilters(); renderApplicants(); });
         return chip;
       }));
     }
@@ -360,8 +371,13 @@
       const board = view === 'board';
       $('pipeline-board').hidden = !board;
       $('applicant-table-wrap').hidden = board;
+      $('applicant-pagination').hidden = board || visibleApplicants().length <= APPLICANTS_PER_PAGE;
       $('board-view-btn').setAttribute('aria-pressed', String(board));
       $('list-view-btn').setAttribute('aria-pressed', String(!board));
+    }
+
+    function resetPipelinePages() {
+      Object.keys(pipelinePages).forEach(status => { pipelinePages[status] = 1; });
     }
 
     function visibleApplicants() {
@@ -378,8 +394,13 @@
       const board = $('pipeline-board');
       board.replaceChildren(...PIPELINE_STAGES.map(([status, label]) => {
         const cards = shown.filter(app => app.status === status);
+        const totalPages = Math.max(1, Math.ceil(cards.length / APPLICANTS_PER_PAGE));
+        const page = Math.min(pipelinePages[status] || 1, totalPages);
+        pipelinePages[status] = page;
+        const start = (page - 1) * APPLICANTS_PER_PAGE;
+        const pageCards = cards.slice(start, start + APPLICANTS_PER_PAGE);
         const list = L2E.el('div', { class: 'pipeline-cards', role: 'list', 'aria-label': label + ' candidates' });
-        cards.forEach(app => {
+        pageCards.forEach(app => {
           const job = jobsById[app.job_id];
           const initials = app.candidate_name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
           const open = L2E.el('button', { type: 'button', class: 'candidate-card-open', 'aria-label': 'Open profile for ' + app.candidate_name },
@@ -403,11 +424,27 @@
           list.append(card);
         });
         if (!cards.length) list.append(L2E.el('p', { class: 'pipeline-empty', text: 'No candidates here yet' }));
+        const columnFooter = L2E.el('div', { class: 'pipeline-column-footer', hidden: cards.length <= APPLICANTS_PER_PAGE });
+        if (cards.length > APPLICANTS_PER_PAGE) {
+          const previous = L2E.el('button', { type: 'button', class: 'pagination-arrow', text: '‹', 'aria-label': 'Previous ' + label + ' candidates', disabled: page <= 1 });
+          previous.addEventListener('click', () => {
+            pipelinePages[status] = page - 1;
+            renderPipeline(shown);
+            $('pipeline-board').querySelector('[data-drop-status="' + status + '"] .pagination-arrow[aria-label="Previous ' + label + ' candidates"]')?.focus();
+          });
+          const next = L2E.el('button', { type: 'button', class: 'pagination-arrow', text: '›', 'aria-label': 'Next ' + label + ' candidates', disabled: page >= totalPages });
+          next.addEventListener('click', () => {
+            pipelinePages[status] = page + 1;
+            renderPipeline(shown);
+            $('pipeline-board').querySelector('[data-drop-status="' + status + '"] .pagination-arrow[aria-label="Next ' + label + ' candidates"]')?.focus();
+          });
+          columnFooter.append(previous, L2E.el('span', { class: 'stage-page-summary', text: (start + 1) + '–' + Math.min(start + APPLICANTS_PER_PAGE, cards.length) + ' of ' + cards.length }), next);
+        }
         const column = L2E.el('section', { class: 'pipeline-column', 'data-drop-status': status, 'aria-label': label + ', ' + cards.length + ' candidates' },
           L2E.el('header', { class: 'pipeline-column-head' },
             L2E.el('h3', { text: label }),
             L2E.el('span', { class: 'stage-count', text: String(cards.length) })),
-          list);
+          list, columnFooter);
         column.addEventListener('dragover', event => { event.preventDefault(); column.classList.add('is-drop-target'); });
         column.addEventListener('dragleave', event => { if (!column.contains(event.relatedTarget)) column.classList.remove('is-drop-target'); });
         column.addEventListener('drop', async event => {
@@ -554,16 +591,22 @@
       const shown = visibleApplicants();
       $('candidate-total').textContent = shown.length + (shown.length === 1 ? ' candidate' : ' candidates');
       renderPipeline(shown);
+      const pageCount = Math.max(1, Math.ceil(shown.length / APPLICANTS_PER_PAGE));
+      applicantPage = Math.min(applicantPage, pageCount);
+      const pageStart = (applicantPage - 1) * APPLICANTS_PER_PAGE;
+      const pageApplicants = shown.slice(pageStart, pageStart + APPLICANTS_PER_PAGE);
       tbody.replaceChildren();
       if (total === 0) {
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No applicants submitted yet.' })));
+        $('applicant-pagination').hidden = true;
         return;
       }
       if (shown.length === 0) {
         tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No one is in this group right now.' })));
+        $('applicant-pagination').hidden = true;
         return;
       }
-      shown.forEach(app => {
+      pageApplicants.forEach(app => {
         const info = L2E.statusInfo(app.status);
         const job = jobsById[app.job_id];
         const candidateName = L2E.el('button', { type: 'button', class: 'candidate-name-button', 'aria-label': 'Open profile for ' + app.candidate_name, text: app.candidate_name });
@@ -605,6 +648,11 @@
             actionButton(app, 'rejected', 'Reject', 'btn-danger', 'The applicant will see "Not selected" when they check their application.'), manage))
         ));
       });
+      $('applicant-pagination').hidden = $('board-view-btn').getAttribute('aria-pressed') === 'true' || shown.length <= APPLICANTS_PER_PAGE;
+      $('applicant-page-summary').textContent = 'Showing ' + (pageStart + 1) + '–' + Math.min(pageStart + APPLICANTS_PER_PAGE, shown.length) + ' of ' + shown.length + ' candidates';
+      $('applicant-page-number').textContent = 'Page ' + applicantPage + ' of ' + pageCount;
+      $('applicant-prev-page').disabled = applicantPage <= 1;
+      $('applicant-next-page').disabled = applicantPage >= pageCount;
     }
 
     async function saveApplicantDetails(app, details) {
@@ -662,6 +710,8 @@
 
     function clearAll() {
       applicants = []; jobsById = {}; filter = 'all'; archivedJobsVisible = false;
+      applicantPage = 1;
+      resetPipelinePages();
       $('pipeline-board').replaceChildren();
       closeCandidateDrawer();
       resetJobForm();
@@ -679,8 +729,10 @@
 
     $('job-form').addEventListener('submit', postJob);
     $('job-cancel-edit').addEventListener('click', resetJobForm);
-    $('applicant-search').addEventListener('input', renderApplicants);
-    $('applicant-sort').addEventListener('change', renderApplicants);
+    $('applicant-search').addEventListener('input', () => { applicantPage = 1; resetPipelinePages(); renderApplicants(); });
+    $('applicant-sort').addEventListener('change', () => { applicantPage = 1; resetPipelinePages(); renderApplicants(); });
+    $('applicant-prev-page').addEventListener('click', () => { applicantPage = Math.max(1, applicantPage - 1); renderApplicants(); });
+    $('applicant-next-page').addEventListener('click', () => { applicantPage += 1; renderApplicants(); });
     $('board-view-btn').addEventListener('click', () => setApplicantView('board'));
     $('list-view-btn').addEventListener('click', () => setApplicantView('list'));
     $('drawer-close').addEventListener('click', closeCandidateDrawer);

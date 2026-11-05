@@ -922,6 +922,14 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .candidate-card-job { overflow: hidden; color: var(--ink-soft); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .candidate-card-meta { display: grid; gap: 5px; margin: 10px 0 0 43px; color: #6b7280; font-size: .66rem; }
 .candidate-card-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pipeline-column-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 34px; margin-top: 8px; padding-top: 7px; border-top: 1px solid #d4dee8; }
+.stage-page-summary { color: var(--ink-soft); font-size: .66rem; white-space: nowrap; }
+.pagination-arrow { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #c7d5e2; border-radius: 8px; color: var(--brand-dark); background: #f7f9fc; font: 700 1.15rem/1 var(--sans); cursor: pointer; }
+.pagination-arrow:disabled { opacity: .4; cursor: default; }
+.applicant-pagination { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.pagination-actions { display: flex; align-items: center; gap: 10px; }
+.pagination-actions .btn { min-height: 36px; }
+.pagination-actions > span { min-width: 82px; text-align: center; font-size: .82rem; }
 .candidate-name-button { padding: 0; border: 0; color: var(--brand-dark); background: transparent; font: 700 .93rem var(--sans); text-align: left; cursor: pointer; }
 .candidate-name-button:hover { text-decoration: underline; }
 
@@ -965,6 +973,8 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
   .workspace-sidebar nav a span, .sidebar-disabled > span { display: none; }
   body[data-page="admin"] .workspace-content > .wrap, body[data-page="dashboard"] .workspace-content > .wrap { padding-inline: 16px; }
   .pipeline-board { grid-template-columns: repeat(6, minmax(218px, 78vw)); }
+  .applicant-pagination { align-items: flex-start; flex-direction: column; }
+  .pagination-actions { width: 100%; justify-content: space-between; }
 }
 
 /* Soft slate surfaces keep the blue theme calm instead of stark white. */
