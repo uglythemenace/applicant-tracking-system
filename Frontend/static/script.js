@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TalentFlow shared script. Loaded by every page.
+   Rolebeam shared script. Loaded by every page.
 
    - API_BASE: the one place the backend address lives. To test against a
      different backend, change it here and nowhere else.
@@ -82,9 +82,8 @@ const L2E = (() => {
 
   // ---------- Header and footer ----------
   const BRAND_ICON =
-    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<rect x="3.5" y="4" width="6" height="6" rx="1.5"/><rect x="14.5" y="14" width="6" height="6" rx="1.5"/>' +
-    '<path d="M9.5 7h3a2 2 0 0 1 2 2v5"/><path d="M14.5 17h-2"/></svg>';
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M6 12h12"/><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>';
 
   function mountChrome() {
     const page = document.body.dataset.page || "";
@@ -95,14 +94,14 @@ const L2E = (() => {
     if (header) {
       header.innerHTML = staff
         ? `<div class="wrap">
-             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>TalentFlow <span class="badge-staff">Staff</span></a>
+             <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>Rolebeam <span class="badge-staff">Staff</span></a>
              <nav class="nav" aria-label="Main">
                <a href="/">Public site</a>
                <button type="button" id="sign-out-btn">Sign out</button>
              </nav>
            </div>`
         : `<div class="wrap">
-             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>TalentFlow</a>
+             <a class="brand" href="/"><span class="brand-mark">${BRAND_ICON}</span>Rolebeam</a>
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
@@ -113,7 +112,7 @@ const L2E = (() => {
     const footer = document.getElementById("site-footer");
     if (footer) {
       footer.innerHTML = `<div class="wrap footer-row">
-          <p>&copy; ${new Date().getFullYear()} TalentFlow</p>
+          <p>&copy; ${new Date().getFullYear()} Rolebeam</p>
           <nav aria-label="Footer">
             <a href="/jobs">Jobs</a>
             <a href="/track">Check my application</a>

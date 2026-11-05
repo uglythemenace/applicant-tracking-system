@@ -4,7 +4,7 @@ from jobs import router as jobs_router
 from applications import router as applications_router
 from auth import router as auth_router
 
-app = FastAPI(title="TalentFlow Applicant Tracking API", version="0.1.0")
+app = FastAPI(title="Rolebeam Applicant Tracking API", version="0.1.0")
 
 # Add CORS middleware to allow the frontend to communicate with the API
 app.add_middleware(
