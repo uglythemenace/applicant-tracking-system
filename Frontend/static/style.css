@@ -1,4 +1,6 @@
-/* ==========================================================================
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* ========================================================================== 
    Rolebeam design system
    Plain CSS. No build step. Edit this file and refresh the page.
 
@@ -991,10 +993,10 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .status-hero { background-color: #e7eef5; }
 
 /* Rolebeam mark: a geometric R with a restrained electric blue signal detail. */
-.brand { gap: 13px; font-size: 1.4rem; font-weight: 700; letter-spacing: -.045em; }
+.brand { gap: 13px; font-size: 1.4rem; font-weight: 600; letter-spacing: -.04em; }
 .brand-word { display: inline-flex; align-items: baseline; gap: 0; }
-.brand-initial { color: var(--brand-dark); font: 750 1.52rem/1 var(--sans); letter-spacing: -.075em; }
-.brand-name-rest { font: 650 1.4rem/1 var(--sans); }
+.brand-initial { color: var(--brand-dark); font: 700 1.55rem/1 "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif; letter-spacing: -.075em; }
+.brand-name-rest { font: 500 1.4rem/1 "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif; letter-spacing: -.035em; }
 .brand-mark {
   display: grid;
   flex: none;
