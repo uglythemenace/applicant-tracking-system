@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://applicant-tracking-system-frontend.vercel.app/sitemap.xml
