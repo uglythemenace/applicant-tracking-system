@@ -9,7 +9,7 @@ from io import BytesIO
 from datetime import date, datetime, timezone
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
 from starlette.datastructures import UploadFile
 
 from auth import require_admin
@@ -461,6 +461,34 @@ def get_applications(
     except Exception as exc:
         logger.error("Could not load applications (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Could not load applications") from None
+
+
+@router.post("/retention/purge")
+def purge_expired_applications(
+    background_tasks: BackgroundTasks,
+    x_retention_token: str = Header(default=""),
+):
+    """Run the scheduled 12-month retention purge using a shared secret."""
+    expected_token = os.environ.get("RETENTION_PURGE_TOKEN", "")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="Scheduled retention is not configured")
+    if not hmac.compare_digest(x_retention_token, expected_token):
+        raise HTTPException(status_code=401, detail="Not authorized")
+
+    try:
+        result = supabase.rpc("purge_expired_applications_12_months", {}).execute()
+        count = result.data
+        if isinstance(count, list):
+            count = count[0] if count else 0
+        if isinstance(count, dict):
+            count = next(iter(count.values()), 0)
+        deleted_count = max(0, int(count or 0))
+        # Also retry any earlier object removals that failed transiently.
+        background_tasks.add_task(_process_queued_resume_deletions)
+        return {"deleted_count": deleted_count}
+    except Exception as exc:
+        logger.error("Scheduled retention purge failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Scheduled retention purge failed") from None
 
 
 @router.delete("/{application_id}")
