@@ -1011,3 +1011,19 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 }
 .brand-mark svg { display: block; width: 38px; height: 38px; }
 .brand .badge-staff { margin-left: 10px; }
+
+/* Keep the public job search usable on narrow phones and respect reduced motion. */
+@media (max-width: 640px) {
+  .job-filter-panel .filters { grid-template-columns: minmax(0, 1fr); }
+  .nav a, .nav button { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

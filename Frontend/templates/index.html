@@ -26,7 +26,7 @@
         <form id="apply-form" class="panel" novalidate>
           <div class="field" id="f-job">
             <label for="job-id">Which job are you applying for? (required)</label>
-            <select id="job-id" required>
+            <select id="job-id" required aria-describedby="e-job">
               <option value="">Loading jobs&hellip;</option>
             </select>
             <p class="error-text" id="e-job">Choose a job from the list.</p>
@@ -34,7 +34,7 @@
 
           <div class="field" id="f-name">
             <label for="candidate-name">Your full name (required)</label>
-            <input type="text" id="candidate-name" autocomplete="name" maxlength="120" placeholder="For example: Maria Johnson" required>
+            <input type="text" id="candidate-name" autocomplete="name" maxlength="120" placeholder="For example: Maria Johnson" required aria-describedby="e-name">
             <p class="error-text" id="e-name">Enter your full name.</p>
           </div>
 
@@ -123,7 +123,9 @@
 
     function setError(fieldId, input, on) {
       $(fieldId).classList.toggle('has-error', on);
-      if (on) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+      if (on) input.setAttribute('aria-invalid', 'true');
+      else if (fieldId === 'f-cv') $(fieldId).querySelectorAll('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+      else input.removeAttribute('aria-invalid');
     }
 
     function showNotice(tone, text) {
@@ -205,7 +207,8 @@
           cvBad = !['http:', 'https:'].includes(resumeUrl.protocol) || /^[^/]+@[^/]+$/.test(resumeUrl.host);
         } catch (err) { cvBad = true; }
       }
-      setError('f-cv', cvInput, cvBad); if (cvBad) problems.push(cvFile && !cv ? cvFileInput : cvInput);
+      const cvErrorTarget = cvFile && !cv ? cvFileInput : cvInput;
+      setError('f-cv', cvErrorTarget, cvBad); if (cvBad) problems.push(cvErrorTarget);
       if (problems.length) {
         showFormError(problems.length === 1 ? 'Please fix the box marked below.' : 'Please fix the ' + problems.length + ' boxes marked below.');
         problems[0].focus();
