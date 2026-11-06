@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Job details | Rolebeam</title>
   <meta name="description" content="Read the job details and apply online with Rolebeam.">
+  <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -44,6 +45,30 @@
           L2E.el('a', { class: 'btn btn-primary', href: '/apply?job=' + encodeURIComponent(job.id), text: 'Apply for this role' })
         );
         document.title = job.title + ' | Rolebeam';
+        const jobDescription = String(job.description || '').replace(/\s+/g, ' ').trim();
+        const description = document.querySelector('meta[name="description"]');
+        if (description) description.content = (job.title + ' at Rolebeam. ' + jobDescription).slice(0, 160);
+        const canonicalUrl = new URL('/job', location.origin);
+        canonicalUrl.searchParams.set('id', String(job.id));
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) {
+          canonical = document.createElement('link');
+          canonical.rel = 'canonical';
+          document.head.append(canonical);
+        }
+        canonical.href = canonicalUrl.href;
+        const ogTitle = document.createElement('meta');
+        ogTitle.setAttribute('property', 'og:title');
+        ogTitle.content = job.title + ' | Rolebeam';
+        document.head.append(ogTitle);
+        const ogDescription = document.createElement('meta');
+        ogDescription.setAttribute('property', 'og:description');
+        ogDescription.content = (job.title + ' at Rolebeam. ' + jobDescription).slice(0, 160);
+        document.head.append(ogDescription);
+        const ogUrl = document.createElement('meta');
+        ogUrl.setAttribute('property', 'og:url');
+        ogUrl.content = canonicalUrl.href;
+        document.head.append(ogUrl);
         const orgUrl = location.origin;
         const schemaEmployment = ({ full_time: 'FULL_TIME', part_time: 'PART_TIME', contract: 'CONTRACTOR', temporary: 'TEMPORARY', internship: 'INTERN' })[job.employment_type] || 'FULL_TIME';
         const structured = {
