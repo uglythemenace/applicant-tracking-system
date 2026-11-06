@@ -501,6 +501,8 @@
       const activityList = L2E.el('div', { class: 'activity-list', 'aria-live': 'polite' });
       const activityButton = L2E.el('button', { type: 'button', class: 'btn btn-secondary btn-small', text: 'Load activity history' });
       activityButton.addEventListener('click', () => loadActivity(app, activityList));
+      const deleteButton = L2E.el('button', { type: 'button', class: 'btn btn-danger btn-small', text: 'Delete application and personal data' });
+      deleteButton.addEventListener('click', () => deleteApplicant(app, deleteButton));
       const info = L2E.statusInfo(app.status);
       content.replaceChildren(
         L2E.el('div', { class: 'drawer-candidate-head' },
@@ -528,7 +530,11 @@
             L2E.el('label', {}, 'Time zone', timezone),
             L2E.el('label', {}, 'Location or video details', location),
             L2E.el('label', {}, 'Reschedule link', reschedule), save)),
-        L2E.el('section', { class: 'drawer-section' }, L2E.el('h3', { text: 'Activity' }), activityButton, activityList));
+        L2E.el('section', { class: 'drawer-section' }, L2E.el('h3', { text: 'Activity' }), activityButton, activityList),
+        L2E.el('section', { class: 'drawer-section' },
+          L2E.el('h3', { text: 'Applicant data' }),
+          L2E.el('p', { class: 'muted', text: 'Permanently removes this application, private notes, status history, and any uploaded résumé.' }),
+          deleteButton));
       $('candidate-drawer-backdrop').hidden = false;
       $('drawer-close').focus();
     }
@@ -661,6 +667,32 @@
         if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.detail || 'Could not save applicant details'); }
         L2E.toast('Private notes and interview details saved.'); loadApplicants();
       } catch (err) { L2E.toast(err.message || 'Could not save applicant details.', 'bad'); }
+    }
+
+    async function deleteApplicant(app, button) {
+      const confirmed = await L2E.confirmBox({
+        title: 'Delete ' + app.candidate_name + '’s application?',
+        message: 'This removes the application from active records, including private notes, status history, and any résumé uploaded to this site. It cannot be undone in the dashboard; database backups may follow separate retention timelines. If the résumé was supplied as an external link, the file at that other site is not removed.',
+        confirmLabel: 'Delete application',
+        danger: true
+      });
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        const res = await L2E.adminFetch('/applications/' + app.id, { method: 'DELETE' });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(result.detail || 'Could not delete this application.');
+        applicants = applicants.filter(item => item.id !== app.id);
+        closeCandidateDrawer();
+        renderFilters();
+        renderApplicants();
+        L2E.toast(result.resume_cleanup_queued
+          ? 'Application deleted. Uploaded résumé removal was queued.'
+          : 'Application and personal data deleted.');
+      } catch (err) {
+        button.disabled = false;
+        L2E.toast(err.message || 'Could not delete this application. Please try again.', 'bad');
+      }
     }
 
     async function loadActivity(app, target) {

@@ -9,6 +9,7 @@ A candidate careers portal and recruiter workspace for posting jobs, receiving a
 - The admin dashboard includes applicant search and sorting, private notes, interview details, an activity log, and individual Supabase Auth sign-in.
 - The recruiter workspace uses a draggable hiring board with a list-view fallback and a candidate profile drawer for résumé access, private notes, interview details, and status changes.
 - Applications require a non-blank name and a valid email; résumé links must use HTTP or HTTPS. The backend rejects applications to closed or missing jobs.
+- Staff can permanently delete an individual application and its related notes, status history, identity claims, and uploaded résumé. Résumé object cleanup is queued and retried if storage is temporarily unavailable; the deletion audit records only the staff actor and time.
 - Tracking lookups use a JSON POST request instead of putting the email and code in the request URL. New tracking links no longer put the code in the page address.
 - Applicants can view recorded status changes and interview details on their private tracking dashboard.
 - Form labels, error announcements, contrast, mobile navigation, and small-screen job cards were improved.
@@ -20,7 +21,7 @@ A candidate careers portal and recruiter workspace for posting jobs, receiving a
 
 The tracking API uses **POST** so the applicant's email and tracking code do not appear in the request URL. Deploy the backend and frontend close together; older deployed versions may not work with the updated tracking flow. Other clients that call the tracking endpoint must also use POST.
 
-Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` before deploying. `20261104_job_discovery_and_candidate_experience.sql` adds public job details, candidate status history, interview details, private notes, and the admin activity log. It relies on the previously applied phone and job archive migrations. The migration keeps applicant timeline and audit tables private to the backend service role.
+Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` in date order before deploying. `20261104_job_discovery_and_candidate_experience.sql` adds public job details, candidate status history, interview details, private notes, and the admin activity log. It relies on the previously applied phone and job archive migrations. `20261106_application_retention_deletion.sql` adds staff-initiated applicant erasure and a private résumé cleanup queue. The migrations keep applicant timeline, audit, deletion, and cleanup data private to the backend service role.
 
 The staff page now uses individual Supabase Auth accounts. In Supabase, create an Auth user for each staff member, then set `SUPABASE_ANON_KEY` and a comma-separated `ADMIN_EMAILS` allowlist in Render. Keep `SUPABASE_KEY` as the service-role key used by the backend; never expose that key to the frontend. The `ADMIN_API_KEY` remains only as a fallback secret for duplicate-attempt hash generation, not as staff login. Set `PUBLIC_CONTACT_EMAIL` in Render to show the hiring team's contact address on `/contact`.
 
@@ -83,7 +84,7 @@ All styling is in one plain file, `Frontend/static/style.css`, and all shared be
 
 ## Remaining work before real hiring
 
-- Decide and document a formal retention period and deletion workflow before real hiring begins.
+- Decide and document a formal retention period and automated purge schedule before real hiring begins. Staff can delete applications manually, but records are not automatically purged by age.
 - Provide a secure way to recover a lost tracking code. Email sends the code when the selected provider is configured correctly.
 - Staff access uses individual Supabase Auth accounts and an email allowlist. MFA setup and enforcement are not included in this change; add and verify that flow before relying on MFA. The backend verifies staff tokens against Supabase on protected requests; the service key remains backend-only.
 - Check log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.

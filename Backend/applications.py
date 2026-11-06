@@ -146,6 +146,35 @@ def _remove_resume(path: str | None) -> None:
         logger.exception("Could not remove an unlinked résumé upload")
 
 
+def _process_queued_resume_deletions(limit: int = 100) -> None:
+    """Retry private résumé removals left queued by an applicant erasure."""
+    try:
+        queued = (
+            supabase.table("application_resume_deletion_queue")
+            .select("id, storage_path, attempt_count")
+            .order("queued_at")
+            .limit(limit)
+            .execute()
+        ).data or []
+    except Exception as exc:
+        logger.error("Could not load résumé deletion queue (%s)", type(exc).__name__)
+        return
+
+    for item in queued:
+        try:
+            supabase.storage.from_(RESUME_BUCKET).remove([item["storage_path"]])
+            supabase.table("application_resume_deletion_queue").delete().eq("id", item["id"]).execute()
+        except Exception as exc:
+            try:
+                supabase.table("application_resume_deletion_queue").update({
+                    "attempt_count": int(item.get("attempt_count") or 0) + 1,
+                    "last_attempt_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", item["id"]).execute()
+            except Exception as queue_exc:
+                logger.error("Could not update résumé deletion retry state (%s)", type(queue_exc).__name__)
+            logger.error("Résumé deletion cleanup attempt failed (%s)", type(exc).__name__)
+
+
 @router.post("/", response_model=ApplicationResponse)
 async def create_application(request: Request):
     """Accept applications only for jobs that are currently open."""
@@ -417,16 +446,51 @@ def withdraw_application(credentials: TrackRequest, response: Response):
 
 
 @router.get("/")
-def get_applications(job_id: int | None = None, admin: dict = Depends(require_admin)):
+def get_applications(
+    background_tasks: BackgroundTasks,
+    job_id: int | None = None,
+    admin: dict = Depends(require_admin),
+):
     try:
         query = supabase.table("applications").select("*")
         if job_id:
             query = query.eq("job_id", job_id)
         response = query.execute()
+        background_tasks.add_task(_process_queued_resume_deletions)
         return response.data
     except Exception as exc:
         logger.error("Could not load applications (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Could not load applications") from None
+
+
+@router.delete("/{application_id}")
+def delete_application(
+    application_id: int,
+    background_tasks: BackgroundTasks,
+    admin: dict = Depends(require_admin),
+):
+    """Erase one application and queue its private résumé for storage cleanup."""
+    try:
+        result = supabase.rpc("delete_application_for_retention", {
+            "p_application_id": application_id,
+            "p_actor_email": admin["email"],
+        }).execute()
+        outcome = result.data
+        if isinstance(outcome, list):
+            outcome = outcome[0] if outcome else None
+        if not outcome or not outcome.get("deleted"):
+            raise HTTPException(status_code=404, detail="Application not found")
+        if outcome.get("resume_cleanup_queued"):
+            background_tasks.add_task(_process_queued_resume_deletions)
+        return {
+            "deleted": True,
+            "resume_cleanup_queued": bool(outcome.get("resume_cleanup_queued")),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Could not delete application (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Could not delete application. Please try again.") from None
 
 
 @router.get("/{application_id}/resume")
