@@ -19,10 +19,10 @@
       <aside class="workspace-sidebar" aria-label="Staff navigation">
         <p class="sidebar-eyebrow">WORKSPACE</p>
         <nav>
-          <a href="/dashboard"><span aria-hidden="true">▦</span>Overview</a>
+          <a href="#overview"><span aria-hidden="true">▦</span>Overview</a>
           <a href="#jobs-title"><span aria-hidden="true">▤</span>Jobs</a>
           <a href="#apps-title" aria-current="page"><span aria-hidden="true">♙</span>Candidates</a>
-          <a href="/dashboard#analytics"><span aria-hidden="true">▥</span>Analytics</a>
+          <a href="#action-summary"><span aria-hidden="true">▥</span>Needs action</a>
           <span class="sidebar-disabled" aria-disabled="true"><span aria-hidden="true">✧</span>Automation <small>Later</small></span>
         </nav>
         <div class="sidebar-bottom"><span class="sidebar-brand-dot" aria-hidden="true">RB</span><span><strong>Rolebeam</strong><small>Recruiting workspace</small></span></div>
@@ -30,6 +30,7 @@
       <div class="workspace-content">
       <div class="wrap">
       <div class="page-head">
+        <span id="overview" class="anchor-target" aria-hidden="true"></span>
         <h1>Jobs and applications</h1>
         <p>Manage open roles and move candidates through your hiring pipeline.</p>
         <div class="row" style="margin-top:16px">
@@ -37,7 +38,26 @@
         </div>
       </div>
 
-      <section aria-label="Totals" class="tiles">
+      <section class="action-brief" id="action-summary" aria-labelledby="action-brief-title">
+        <div class="action-brief-heading">
+          <div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="action-brief-title">Needs action</h2></div>
+          <p class="muted">A quick view of new applications and upcoming interviews.</p>
+        </div>
+        <div class="action-brief-grid">
+          <article class="action-brief-card">
+            <p class="action-brief-label">New applications · last 7 days</p>
+            <p class="action-brief-number" id="new-applications-count" aria-live="polite">—</p>
+            <a href="#apps-title" class="action-brief-link" data-action-filter="new">Review new applications <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="action-brief-card">
+            <p class="action-brief-label">Upcoming interviews · this week</p>
+            <p class="action-brief-number" id="weekly-interviews-count" aria-live="polite">—</p>
+            <a href="#apps-title" class="action-brief-link" data-action-filter="interviews">View this week’s interviews <span aria-hidden="true">→</span></a>
+          </article>
+        </div>
+      </section>
+
+      <section id="analytics" aria-label="Application totals" class="tiles">
         <div class="tile"><p class="tile-num" id="total-count">0</p><p class="tile-label">People applied</p></div>
         <div class="tile"><p class="tile-num" id="pending-count">0</p><p class="tile-label">Waiting for review</p></div>
         <div class="tile"><p class="tile-num" id="accepted-count">0</p><p class="tile-label">Accepted</p></div>
@@ -350,19 +370,47 @@
     }
 
     // ----- Applications -----
-    const FILTERS = [['all', 'Everyone'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
+    const FILTERS = [['all', 'Everyone'], ['new', 'New this week'], ['interviews', 'Interviews this week'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
     const APPLICANTS_PER_PAGE = 10;
     let applicantPage = 1;
     const pipelinePages = Object.create(null);
 
+    function isNewApplication(app) {
+      const created = Date.parse(app.created_at || '');
+      return Number.isFinite(created) && created <= Date.now() && created >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+    }
+
+    function interviewWeekBounds() {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return { now: Date.now(), end: end.getTime() };
+    }
+
+    function isInterviewThisWeek(app) {
+      const when = Date.parse(app.interview_at || '');
+      const { now, end } = interviewWeekBounds();
+      return Number.isFinite(when) && when >= now && when < end;
+    }
+
+    function matchesFilter(app, value) {
+      if (value === 'new') return isNewApplication(app);
+      if (value === 'interviews') return isInterviewThisWeek(app);
+      return value === 'all' || app.status === value;
+    }
+
     function renderFilters() {
       const box = $('filters');
       box.replaceChildren(...FILTERS.map(([value, label]) => {
-        const n = value === 'all' ? applicants.length : applicants.filter(a => a.status === value).length;
+        const n = applicants.filter(a => matchesFilter(a, value)).length;
         const chip = L2E.el('button', { type: 'button', class: 'chip', 'aria-pressed': String(filter === value), text: label + ' (' + n + ')' });
         chip.addEventListener('click', () => { filter = value; applicantPage = 1; resetPipelinePages(); renderFilters(); renderApplicants(); });
         return chip;
       }));
+      $('new-applications-count').textContent = applicants.filter(isNewApplication).length;
+      $('weekly-interviews-count').textContent = applicants.filter(isInterviewThisWeek).length;
     }
 
     const PIPELINE_STAGES = [
@@ -386,7 +434,7 @@
     function visibleApplicants() {
       const query = $('applicant-search').value.trim().toLowerCase();
       const jobTitle = (a) => jobsById[a.job_id]?.title || '';
-      const shown = applicants.filter(a => (filter === 'all' || a.status === filter) &&
+      const shown = applicants.filter(a => matchesFilter(a, filter) &&
         (!query || [a.candidate_name, a.email, a.phone_number, jobTitle(a)].join(' ').toLowerCase().includes(query)));
       if ($('applicant-sort').value === 'oldest') shown.sort((a, b) => a.id - b.id);
       else if ($('applicant-sort').value === 'name') shown.sort((a, b) => a.candidate_name.localeCompare(b.candidate_name));
@@ -723,7 +771,7 @@
       } catch (error) {
         console.error('Error fetching applicants:', error);
         if (!L2E.keyIsCurrent(key)) return;
-        for (const id of ['total-count', 'pending-count', 'accepted-count']) $(id).textContent = '—';
+        for (const id of ['total-count', 'pending-count', 'accepted-count', 'new-applications-count', 'weekly-interviews-count']) $(id).textContent = '—';
         $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: "Couldn't load applications. Press \"Refresh the lists\" in a moment." })));
       }
     }
@@ -759,7 +807,7 @@
       $('toggle-archived-btn').setAttribute('aria-expanded', 'false');
       $('filters').replaceChildren();
       $('applicant-table-body').replaceChildren();
-      for (const id of ['total-count', 'pending-count', 'accepted-count']) $(id).textContent = '0';
+      for (const id of ['total-count', 'pending-count', 'accepted-count', 'new-applications-count', 'weekly-interviews-count']) $(id).textContent = '0';
     }
 
     $('job-form').addEventListener('submit', postJob);
@@ -770,6 +818,13 @@
     $('applicant-next-page').addEventListener('click', () => { applicantPage += 1; renderApplicants(); });
     $('board-view-btn').addEventListener('click', () => setApplicantView('board'));
     $('list-view-btn').addEventListener('click', () => setApplicantView('list'));
+    document.querySelectorAll('[data-action-filter]').forEach(link => link.addEventListener('click', () => {
+      filter = link.dataset.actionFilter;
+      applicantPage = 1;
+      resetPipelinePages();
+      renderFilters();
+      renderApplicants();
+    }));
     $('drawer-close').addEventListener('click', closeCandidateDrawer);
     $('candidate-drawer-backdrop').addEventListener('click', event => { if (event.target === $('candidate-drawer-backdrop')) closeCandidateDrawer(); });
     document.addEventListener('keydown', event => {
