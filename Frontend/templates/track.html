@@ -6,6 +6,7 @@
   <title>Check my application | Rolebeam</title>
   <meta name="description" content="Securely check the status of your Rolebeam job application using your email and tracking code.">
   <meta name="robots" content="noindex,follow">
+  <meta name="referrer" content="no-referrer">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -21,7 +22,7 @@
         <div class="page-head">
           <p class="hero-kicker" style="color:var(--brand);margin-bottom:14px"><span class="kicker-dot" aria-hidden="true"></span> YOUR APPLICATION, AT A GLANCE</p>
           <h1>Check your application</h1>
-          <p>Enter the email address you applied with and the tracking code shown after you submitted your application.</p>
+          <p>Open the private link in your confirmation message for instant access, or enter the email and tracking code shown after you applied.</p>
         </div>
 
         <form id="track-form" class="panel" novalidate>
@@ -107,6 +108,7 @@
           L2E.el('p', { text: withdrawn ? 'You can apply for another open role whenever you’re ready.' : accepted ? 'Review this dashboard for interview details and next steps.' : rejected ? 'You can browse other open roles whenever you’re ready.' : 'Check this dashboard again for status changes.' })));
       const another = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Check another application' });
       another.addEventListener('click', () => {
+        try { sessionStorage.removeItem('rolebeam-tracking-token'); } catch (error) { /* storage blocked */ }
         dashboard.hidden = true;
         document.getElementById('lookup-card').hidden = false;
         document.getElementById('track-form').reset();
@@ -126,7 +128,8 @@
             cancel.disabled = true;
             feedback.textContent = 'Withdrawing your application…';
             try {
-              const response = await L2E.request('/applications/withdraw', {
+              const withdrawUrl = credentials.token ? '/applications/withdraw-link' : '/applications/withdraw';
+              const response = await L2E.request(withdrawUrl, {
                 method: 'POST', body: credentials, cache: 'no-store',
                 onSlow: () => { feedback.textContent = L2E.WAKE_NOTE; }
               });
@@ -194,6 +197,22 @@
       }
     }
 
+    async function checkMagicLink(token) {
+      showAlert('info', 'Opening your tracking dashboard…');
+      try {
+        const response = await L2E.request('/applications/track-link', {
+          method: 'POST', body: { token }, cache: 'no-store',
+          onSlow: () => showAlert('info', 'Still looking…', L2E.WAKE_NOTE)
+        });
+        if (response.status === 404) throw new Error('This private link is invalid or no longer available. Enter your email and tracking code below.');
+        if (!response.ok) throw new Error('We could not open your application right now. Use your email and tracking code below.');
+        renderResult(await response.json(), { token });
+      } catch (error) {
+        try { sessionStorage.removeItem('rolebeam-tracking-token'); } catch (storageError) { /* storage blocked */ }
+        showAlert('bad', 'We could not open that tracking link.', error.message || 'Use your email and tracking code below.');
+      }
+    }
+
     document.getElementById('track-form').addEventListener('submit', checkStatus);
 
     // Pick up the code placed in this tab after a successful application.
@@ -203,16 +222,31 @@
       sessionStorage.removeItem('learn2earn-tracking-code');
     } catch (error) { /* the person can type the code */ }
 
-    // Old shared links may carry the code or email. Use them, then remove them from the address bar.
+    // Consume private tracking tokens immediately and remove them from the address bar.
+    // The token is sent to the backend in a no-store POST body, never in an API URL.
     const params = new URLSearchParams(window.location.search);
+    const linkToken = params.get('t');
+    if (linkToken) {
+      try { sessionStorage.setItem('rolebeam-tracking-token', linkToken); } catch (error) { /* use the in-memory value */ }
+      params.delete('t');
+    }
+
+    // Old shared links may carry the code or email. Use them, then remove them from the address bar.
     if (params.has('code') || params.has('email')) {
       if (params.get('code')) document.getElementById('code').value = params.get('code');
       if (params.get('email')) document.getElementById('email').value = params.get('email');
       params.delete('code');
       params.delete('email');
-      const remaining = params.toString();
+    }
+    const remaining = params.toString();
+    if (linkToken || window.location.search !== (remaining ? '?' + remaining : '')) {
       history.replaceState(null, '', location.pathname + (remaining ? '?' + remaining : '') + location.hash);
     }
+    let savedLinkToken = linkToken;
+    if (!savedLinkToken) {
+      try { savedLinkToken = sessionStorage.getItem('rolebeam-tracking-token'); } catch (error) { /* enter the code manually */ }
+    }
+    if (savedLinkToken) checkMagicLink(savedLinkToken);
   </script>
 </body>
 </html>

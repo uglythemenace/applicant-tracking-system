@@ -7,11 +7,13 @@ A candidate careers portal and recruiter workspace for posting jobs, receiving a
 - Public job endpoints return open, unexpired jobs only. Individual job pages show clear details and search-engine structured job data.
 - Staff can archive closed jobs from the main list and restore them later; archiving preserves their application history.
 - The staff workspace combines job management, a candidate pipeline, upcoming interview and new-application counts, search, private notes, and the activity log under one sign-in.
+- Staff can open a keyboard command palette with Cmd/Ctrl+K to search candidates, jump to jobs, and review the work that needs attention.
 - The recruiter workspace uses a draggable hiring board with a list-view fallback and a candidate profile drawer for résumé access, private notes, interview details, and status changes.
 - Applications require a non-blank name and a valid email; résumé links must use HTTP or HTTPS. The backend rejects applications to closed or missing jobs.
 - Staff can permanently delete an individual application and its related notes, status history, identity claims, and uploaded résumé. Résumé object cleanup is queued and retried if storage is temporarily unavailable; the deletion audit stores only the actor and time.
 - Once the retention secret is configured, finalized applications (accepted, rejected, or withdrawn) are automatically deleted after 12 months from their final status date.
 - Tracking lookups use a JSON POST request instead of putting the email and code in the request URL. New tracking links no longer put the code in the page address.
+- Confirmation messages can open a private applicant status dashboard with a random tracking link; the email-and-code lookup remains available as a fallback.
 - Applicants can view recorded status changes and interview details on their private tracking dashboard.
 - Form labels, error announcements, contrast, mobile navigation, and small-screen job cards were improved.
 - The site was redesigned for everyday readers: large text, big buttons, plain words, confirmation before Accept, Reject and Close, a phone-friendly layout, and a friendly "server is waking up" message. The public pages use the shared `Frontend/static/style.css` stylesheet.
@@ -22,7 +24,7 @@ A candidate careers portal and recruiter workspace for posting jobs, receiving a
 
 The tracking API uses **POST** so the applicant's email and tracking code do not appear in the request URL. Deploy the backend and frontend close together; older deployed versions may not work with the updated tracking flow. Other clients that call the tracking endpoint must also use POST.
 
-Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` in date order before deploying. `20261104_job_discovery_and_candidate_experience.sql` adds public job details, candidate status history, interview details, private notes, and the admin activity log. It relies on the previously applied phone and job archive migrations. `20261106_application_retention_deletion.sql` adds staff-initiated applicant erasure and a private résumé cleanup queue. `20261107_automated_application_retention.sql` adds the 12-month cleanup function. The migrations keep applicant timeline, audit, deletion, and cleanup data private to the backend service role.
+Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in `Backend/migrations/` in date order before deploying. The `20261102_initial_application_schema.sql` migration creates the core tables without copying production records. The later migrations add phone and job archiving, public job details, candidate status history, interview details, private notes, the admin activity log, private résumé storage, data deletion, automated retention, and private tracking tokens. `20261110_tighten_identity_guard_and_index.sql` closes direct API access to the identity trigger function and indexes the application-to-job foreign key. Apply these migrations to staging first; the existing email-and-code tracking flow remains available for fallback.
 
 The staff page now uses individual Supabase Auth accounts. In Supabase, create an Auth user for each staff member, then set `SUPABASE_ANON_KEY` and a comma-separated `ADMIN_EMAILS` allowlist in Render. Keep `SUPABASE_KEY` as the service-role key used by the backend; never expose that key to the frontend. The `ADMIN_API_KEY` remains only as a fallback secret for duplicate-attempt hash generation, not as staff login. Set `PUBLIC_CONTACT_EMAIL` in Render to show the hiring team's contact address on `/contact`.
 
@@ -86,6 +88,8 @@ On Linux, Playwright may also require browser system libraries; see `npx playwri
 All styling is in one plain file, `Frontend/static/style.css`, and all shared behavior (the menu, footer, staff sign-in, confirmation boxes, and the backend address `API_BASE`) is in `Frontend/static/script.js`. There is no build step. Edit a file, save it, and refresh the page.
 
 While working on the `redesign` branch, `API_BASE` points to the separate staging backend at `https://applicant-tracking-system-1-0g5l.onrender.com`. Before merging the frontend branch into `main`, change it back to the production backend URL and deploy the matching frontend and backend changes together. Do not use real applicant data for staging checks.
+
+Before testing staging confirmation links, set `FRONTEND_URL` on the staging Render service to the Vercel preview URL for the `redesign` branch. The default points to the production frontend.
 
 ## Remaining work before real hiring
 

@@ -34,6 +34,7 @@
         <h1>Jobs and applications</h1>
         <p>Manage open roles and move candidates through your hiring pipeline.</p>
         <div class="row" style="margin-top:16px">
+          <button type="button" id="command-palette-open" class="btn btn-plain btn-small" aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K">Quick actions <kbd>⌘ / Ctrl K</kbd></button>
           <button type="button" id="refresh-btn" class="btn btn-secondary btn-small">Refresh the lists</button>
         </div>
       </div>
@@ -64,7 +65,7 @@
       </section>
 
       <section class="section" style="padding-bottom:0" aria-labelledby="jobs-title">
-        <h2 id="jobs-title">Your jobs</h2>
+        <h2 id="jobs-title" tabindex="-1">Your jobs</h2>
         <div class="two-col">
           <form id="job-form" class="panel" novalidate>
             <h3 id="job-form-title">Post a new job</h3>
@@ -163,6 +164,20 @@
       <div id="candidate-drawer-content"></div>
     </aside>
   </div>
+
+  <dialog id="command-palette" class="command-palette" aria-labelledby="command-palette-title">
+    <div class="command-palette-head">
+      <div>
+        <p class="eyebrow">ROLEBEAM WORKSPACE</p>
+        <h2 id="command-palette-title">What do you want to do?</h2>
+      </div>
+      <button type="button" id="command-palette-close" class="drawer-close" aria-label="Close quick actions">×</button>
+    </div>
+    <label class="sr-only" for="command-search">Find a workspace action</label>
+    <input id="command-search" class="command-search" type="search" autocomplete="off" placeholder="Search candidates, jobs, or actions…" aria-controls="command-list">
+    <div id="command-list" class="command-list" aria-label="Workspace actions"></div>
+    <p class="command-palette-foot"><span>Use ↑ ↓ to choose · Enter to open · Esc to close</span><kbd>⌘ / Ctrl K</kbd></p>
+  </dialog>
 
   <footer id="site-footer" class="site-footer"></footer>
   <script src="/Frontend/static/script.js"></script>
@@ -441,6 +456,23 @@
       return shown;
     }
 
+    function pipelineCardActions(app) {
+      const actions = L2E.el('div', { class: 'candidate-card-actions', 'aria-label': 'Quick actions for ' + app.candidate_name });
+      const next = {
+        pending: ['reviewing', 'Start review'],
+        reviewing: ['interview', 'Move to interview'],
+        interview: ['accepted', 'Accept']
+      }[app.status];
+      if (next) {
+        const confirmText = next[0] === 'accepted'
+          ? 'The applicant will see “Accepted” on their tracking dashboard, and the hiring team’s email template will be sent.'
+          : '';
+        actions.append(actionButton(app, next[0], next[1], next[0] === 'accepted' ? 'btn-good' : 'btn-primary', confirmText));
+        actions.append(actionButton(app, 'rejected', 'Reject', 'btn-danger', 'The applicant will see “Not selected” on their tracking dashboard, and the hiring team’s email template will be sent.'));
+      }
+      return actions;
+    }
+
     function renderPipeline(shown) {
       const board = $('pipeline-board');
       board.replaceChildren(...PIPELINE_STAGES.map(([status, label]) => {
@@ -464,7 +496,8 @@
             open,
             L2E.el('div', { class: 'candidate-card-meta' },
               L2E.el('span', { text: app.email }),
-              L2E.el('span', { text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })));
+              L2E.el('span', { text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })),
+            pipelineCardActions(app));
           card.addEventListener('dragstart', event => {
             if (app.status === 'withdrawn') { event.preventDefault(); return; }
             event.dataTransfer.setData('text/plain', String(app.id));
@@ -838,6 +871,82 @@
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
     $('refresh-btn').addEventListener('click', refreshAll);
+    const commandDialog = $('command-palette');
+    const commandSearch = $('command-search');
+    const commandItems = [
+      { id: 'search-candidates', label: 'Search candidates', detail: 'Find someone by name, email, phone, or job', keywords: 'applicant people search', run: () => { jumpToApplicants('all'); $('applicant-search').focus({ preventScroll: true }); } },
+      { id: 'jobs', label: 'Jump to jobs', detail: 'See open roles and job management', keywords: 'roles positions', run: () => { $('jobs-title').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('jobs-title').focus({ preventScroll: true }); } },
+      { id: 'post-job', label: 'Post a job', detail: 'Open the new job form', keywords: 'create role publish', run: () => { $('jobs-title').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('job-title').focus({ preventScroll: true }); } },
+      { id: 'new-applications', label: 'Review new applications', detail: 'Show applications received in the last 7 days', keywords: 'new candidates recent', run: () => jumpToApplicants('new') },
+      { id: 'interviews', label: 'View this week’s interviews', detail: 'Show upcoming interviews scheduled this week', keywords: 'calendar upcoming', run: () => jumpToApplicants('interviews') }
+    ];
+    let commandOpener = null;
+
+    function jumpToApplicants(nextFilter) {
+      filter = nextFilter;
+      applicantPage = 1;
+      resetPipelinePages();
+      renderFilters();
+      renderApplicants();
+      $('apps-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('applicant-search').focus({ preventScroll: true });
+    }
+
+    function renderCommandItems() {
+      const query = commandSearch.value.trim().toLowerCase();
+      const matches = commandItems.filter(item => (item.label + ' ' + item.detail + ' ' + item.keywords).toLowerCase().includes(query));
+      $('command-list').replaceChildren(...matches.map(item => {
+        const button = L2E.el('button', { type: 'button', class: 'command-option', 'data-command-id': item.id },
+          L2E.el('span', { class: 'command-option-copy' },
+            L2E.el('strong', { text: item.label }),
+            L2E.el('span', { class: 'muted', text: item.detail })),
+          L2E.el('span', { class: 'command-option-arrow', 'aria-hidden': 'true', text: '↵' }));
+        button.addEventListener('click', () => {
+          commandOpener = null;
+          commandDialog.close();
+          if (!$('candidate-drawer-backdrop').hidden) closeCandidateDrawer();
+          item.run();
+        });
+        return button;
+      }));
+      if (!matches.length) $('command-list').append(L2E.el('p', { class: 'command-empty', text: 'No matching actions. Try “candidate” or “job”.' }));
+    }
+
+    function openCommandPalette(opener) {
+      if (!L2E.currentKey()) return;
+      if (commandDialog.open) { commandSearch.focus(); return; }
+      commandOpener = opener || document.activeElement;
+      commandSearch.value = '';
+      renderCommandItems();
+      if (!commandDialog.open) commandDialog.showModal();
+      commandSearch.focus();
+    }
+
+    $('command-palette-open').addEventListener('click', event => openCommandPalette(event.currentTarget));
+    $('command-palette-close').addEventListener('click', () => commandDialog.close());
+    commandSearch.addEventListener('input', renderCommandItems);
+    commandSearch.addEventListener('keydown', event => {
+      const options = [...$('command-list').querySelectorAll('.command-option')];
+      if (event.key === 'ArrowDown' && options.length) { event.preventDefault(); options[0].focus(); }
+      else if (event.key === 'Enter' && options.length) { event.preventDefault(); options[0].click(); }
+    });
+    $('command-list').addEventListener('keydown', event => {
+      const options = [...$('command-list').querySelectorAll('.command-option')];
+      const current = options.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown' && current < options.length - 1) { event.preventDefault(); options[current + 1].focus(); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); if (current > 0) options[current - 1].focus(); else commandSearch.focus(); }
+      else if (event.key === 'Enter' && current >= 0) { event.preventDefault(); options[current].click(); }
+    });
+    commandDialog.addEventListener('close', () => {
+      if (commandOpener && commandOpener.isConnected) commandOpener.focus();
+      commandOpener = null;
+    });
+    document.addEventListener('keydown', event => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openCommandPalette(document.activeElement);
+      }
+    });
     $('toggle-archived-btn').addEventListener('click', () => {
       archivedJobsVisible = !archivedJobsVisible;
       $('archived-jobs-list').hidden = !archivedJobsVisible;

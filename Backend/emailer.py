@@ -92,17 +92,18 @@ def _wrap(content: str) -> str:
     </div>"""
 
 
-def send_application_received(to: str, name: str, job_title: str, code: str) -> bool:
+def send_application_received(to: str, name: str, job_title: str, code: str, track_token: str | None = None) -> bool:
     name = html.escape(name or "there")
     job_title = html.escape(job_title)
-    track_url = f"{FRONTEND_URL}/track"
+    track_url = f"{FRONTEND_URL.rstrip('/')}/track?t={track_token}" if track_token else f"{FRONTEND_URL.rstrip('/')}/track"
+    safe_track_url = html.escape(track_url, quote=True)
     body = _wrap(f"""
       <h2>Application submitted successfully</h2>
       <p>Hi {name}, your application for <b>{job_title}</b> has been received and is waiting for review.</p>
       <p>Your tracking code is:</p>
       <p style="font-size:24px;font-weight:bold;letter-spacing:2px">{html.escape(code)}</p>
-      <p>Use this code and your email address to check your status any time:</p>
-      <p><a href="{track_url}">{track_url}</a></p>
+      <p>Open your private tracking link to see your status, or use the code and your email address if you prefer:</p>
+      <p><a href="{safe_track_url}">Check your application</a></p>
     """)
     return _send(to, f"Application submitted successfully: {job_title}", body)
 
@@ -126,11 +127,11 @@ def _send_sms(to: str, body: str) -> bool:
         return False
 
 
-def send_application_received_sms(to: str, job_title: str, code: str) -> bool:
-    track_url = f"{FRONTEND_URL}/track"
+def send_application_received_sms(to: str, job_title: str, code: str, track_token: str | None = None) -> bool:
+    track_url = f"{FRONTEND_URL.rstrip('/')}/track?t={track_token}" if track_token else f"{FRONTEND_URL.rstrip('/')}/track"
     body = (
         f"Rolebeam: We received your application for {job_title}. "
-        f"Tracking code: {code}. Check your status at {track_url} using your email and code. Reply STOP to stop texts."
+        f"Tracking link: {track_url}. Backup code: {code}. Reply STOP to stop texts."
     )
     return _send_sms(to, body)
 

@@ -1,5 +1,6 @@
 from typing import Literal, Optional
 from datetime import date
+from uuid import UUID
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -147,6 +148,10 @@ class TrackRequest(BaseModel):
     @classmethod
     def strip_value(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+
+class TrackLinkRequest(BaseModel):
+    token: UUID
 
 
 class TrackResponse(BaseModel):

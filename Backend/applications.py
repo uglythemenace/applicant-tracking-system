@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import secrets
+import uuid
 import zipfile
 from io import BytesIO
 from datetime import date, datetime, timezone
@@ -25,6 +26,7 @@ from schemas import (
     ApplicationResponse,
     ApplicationUpdate,
     TrackRequest,
+    TrackLinkRequest,
     TrackResponse,
     WithdrawResponse,
 )
@@ -261,6 +263,7 @@ async def create_application(request: Request):
         # The tracking_code column is UNIQUE, so retry only code collisions.
         for _ in range(5):
             app_data["tracking_code"] = generate_tracking_code()
+            app_data["track_token"] = str(uuid.uuid4())
             if resume_upload:
                 resume_bytes, extension, mime_type = resume_upload
                 resume_path = f"applications/{secrets.token_hex(24)}{extension}"
@@ -286,7 +289,7 @@ async def create_application(request: Request):
                 if "APPLICATION_PHONE_ALREADY_USED" in message:
                     _reject_duplicate_application(app_data["email"], phone, {"phone"})
                 lowered = message.lower()
-                if "tracking_code" in lowered and ("duplicate" in lowered or "unique" in lowered):
+                if ("tracking_code" in lowered or "track_token" in lowered) and ("duplicate" in lowered or "unique" in lowered):
                     continue
                 raise
 
@@ -307,12 +310,13 @@ async def create_application(request: Request):
             saved.get("candidate_name") or "",
             job_title,
             saved["tracking_code"],
+            saved["track_token"],
         )
         saved["tracking_email_sent"] = email_sent
         sms_queued = None
         if saved.get("sms_updates_consent") and saved.get("phone_number"):
             sms_queued = send_application_received_sms(
-                saved["phone_number"], job_title, saved["tracking_code"]
+                saved["phone_number"], job_title, saved["tracking_code"], saved["track_token"]
             )
         saved["tracking_sms_queued"] = sms_queued
         return saved
@@ -324,8 +328,31 @@ async def create_application(request: Request):
         raise HTTPException(status_code=500, detail="Could not submit application") from None
 
 
-# Declared before the /{application_id} route. POST keeps email and code out of
-# the URL; no-store prevents intermediaries from caching the lookup response.
+def _public_tracking_data(record: dict) -> dict:
+    job_result = supabase.table("jobs").select("title, response_expectation").eq("id", record["job_id"]).limit(1).execute()
+    job_data = (job_result.data or [{}])[0]
+    history_result = (
+        supabase.table("application_status_history")
+        .select("status, changed_at")
+        .eq("application_id", record["id"])
+        .order("changed_at")
+        .execute()
+    )
+    return {
+        "job_title": job_data.get("title", get_job_title(record["job_id"])),
+        "status": record["status"],
+        "applied_at": record["created_at"],
+        "response_expectation": job_data.get("response_expectation"),
+        "history": history_result.data or [{"status": record["status"], "changed_at": record["created_at"]}],
+        "interview_at": record.get("interview_at"),
+        "interview_timezone": record.get("interview_timezone"),
+        "interview_location": record.get("interview_location"),
+        "interview_reschedule_url": record.get("interview_reschedule_url"),
+    }
+
+
+# POST keeps credentials out of request URLs, and no-store prevents caches from
+# retaining the private status response.
 @router.post("/track", response_model=TrackResponse)
 def track_application(credentials: TrackRequest, response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -348,27 +375,7 @@ def track_application(credentials: TrackRequest, response: Response):
         record = result.data[0]
         if (record.get("email") or "").strip().lower() != credentials.email.strip().lower():
             raise not_found
-
-        job_result = supabase.table("jobs").select("title, response_expectation").eq("id", record["job_id"]).limit(1).execute()
-        job_data = (job_result.data or [{}])[0]
-        history_result = (
-            supabase.table("application_status_history")
-            .select("status, changed_at")
-            .eq("application_id", record["id"])
-            .order("changed_at")
-            .execute()
-        )
-        return {
-            "job_title": job_data.get("title", get_job_title(record["job_id"])),
-            "status": record["status"],
-            "applied_at": record["created_at"],
-            "response_expectation": job_data.get("response_expectation"),
-            "history": history_result.data or [{"status": record["status"], "changed_at": record["created_at"]}],
-            "interview_at": record.get("interview_at"),
-            "interview_timezone": record.get("interview_timezone"),
-            "interview_location": record.get("interview_location"),
-            "interview_reschedule_url": record.get("interview_reschedule_url"),
-        }
+        return _public_tracking_data(record)
     except HTTPException:
         raise
     except Exception as exc:
@@ -380,6 +387,76 @@ def track_application(credentials: TrackRequest, response: Response):
         ) from None
 
 
+@router.post("/track-link", response_model=TrackResponse)
+def track_application_with_link(credentials: TrackLinkRequest, response: Response):
+    """Open an applicant's private dashboard using the token delivered to them."""
+    response.headers["Cache-Control"] = "no-store"
+    not_found = HTTPException(
+        status_code=404,
+        detail="This tracking link is invalid or no longer available. Use your email and tracking code instead.",
+        headers={"Cache-Control": "no-store"},
+    )
+    try:
+        result = (
+            supabase.table("applications")
+            .select("id, status, created_at, job_id, interview_at, interview_timezone, interview_location, interview_reschedule_url")
+            .eq("track_token", str(credentials.token))
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            raise not_found
+        return _public_tracking_data(result.data[0])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Application tracking-link lookup failed (%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong. Please try again.",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+
+
+def _withdraw_application_record(record: dict, actor_email: str) -> dict:
+    eligible_statuses = ["pending", "reviewing", "interview"]
+    if record.get("status") == "withdrawn":
+        return {"status": "withdrawn", "changed_at": record.get("status_updated_at") or datetime.now(timezone.utc).isoformat()}
+    if record.get("status") not in eligible_statuses:
+        raise HTTPException(status_code=409, detail="This application can no longer be withdrawn.")
+
+    changed_at = datetime.now(timezone.utc).isoformat()
+    updated = (
+        supabase.table("applications")
+        .update({"status": "withdrawn", "status_updated_at": changed_at})
+        .eq("id", record["id"])
+        .in_("status", eligible_statuses)
+        .execute()
+    )
+    if not updated.data:
+        latest = supabase.table("applications").select("status, status_updated_at").eq("id", record["id"]).limit(1).execute()
+        latest_record = (latest.data or [{}])[0]
+        if latest_record.get("status") == "withdrawn":
+            return {"status": "withdrawn", "changed_at": latest_record.get("status_updated_at") or changed_at}
+        raise HTTPException(status_code=409, detail="The application status changed, so it could not be withdrawn. Refresh the page and check the latest status.")
+
+    try:
+        supabase.table("application_status_history").insert({
+            "application_id": record["id"], "status": "withdrawn", "changed_at": changed_at,
+        }).execute()
+        supabase.table("application_audit_log").insert({
+            "application_id": record["id"],
+            "actor_email": actor_email,
+            "action": "candidate_withdrew",
+            "old_status": record["status"],
+            "new_status": "withdrawn",
+            "metadata": {"source": "candidate_tracking"},
+        }).execute()
+    except Exception:
+        logger.exception("Could not record candidate withdrawal activity")
+    return {"status": "withdrawn", "changed_at": changed_at}
+
+
 @router.post("/withdraw", response_model=WithdrawResponse)
 def withdraw_application(credentials: TrackRequest, response: Response):
     """Let a candidate withdraw after proving possession of email and tracking code."""
@@ -389,7 +466,6 @@ def withdraw_application(credentials: TrackRequest, response: Response):
         detail="No application found. Check your email and tracking code.",
         headers={"Cache-Control": "no-store"},
     )
-    eligible_statuses = ["pending", "reviewing", "interview"]
     try:
         result = (
             supabase.table("applications")
@@ -403,45 +479,39 @@ def withdraw_application(credentials: TrackRequest, response: Response):
         record = result.data[0]
         if (record.get("email") or "").strip().lower() != credentials.email.strip().lower():
             raise not_found
-        if record.get("status") == "withdrawn":
-            return {"status": "withdrawn", "changed_at": record.get("status_updated_at") or datetime.now(timezone.utc).isoformat()}
-        if record.get("status") not in eligible_statuses:
-            raise HTTPException(status_code=409, detail="This application can no longer be withdrawn.")
-
-        changed_at = datetime.now(timezone.utc).isoformat()
-        updated = (
-            supabase.table("applications")
-            .update({"status": "withdrawn", "status_updated_at": changed_at})
-            .eq("id", record["id"])
-            .in_("status", eligible_statuses)
-            .execute()
-        )
-        if not updated.data:
-            latest = supabase.table("applications").select("status, status_updated_at").eq("id", record["id"]).limit(1).execute()
-            latest_record = (latest.data or [{}])[0]
-            if latest_record.get("status") == "withdrawn":
-                return {"status": "withdrawn", "changed_at": latest_record.get("status_updated_at") or changed_at}
-            raise HTTPException(status_code=409, detail="The application status changed, so it could not be withdrawn. Refresh the page and check the latest status.")
-
-        try:
-            supabase.table("application_status_history").insert({
-                "application_id": record["id"], "status": "withdrawn", "changed_at": changed_at,
-            }).execute()
-            supabase.table("application_audit_log").insert({
-                "application_id": record["id"],
-                "actor_email": credentials.email.strip().lower(),
-                "action": "candidate_withdrew",
-                "old_status": record["status"],
-                "new_status": "withdrawn",
-                "metadata": {"source": "candidate_tracking"},
-            }).execute()
-        except Exception:
-            logger.exception("Could not record candidate withdrawal activity")
-        return {"status": "withdrawn", "changed_at": changed_at}
+        return _withdraw_application_record(record, credentials.email.strip().lower())
     except HTTPException:
         raise
     except Exception as exc:
         logger.error("Application withdrawal failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Could not withdraw the application. Please try again.", headers={"Cache-Control": "no-store"}) from None
+
+
+@router.post("/withdraw-link", response_model=WithdrawResponse)
+def withdraw_application_with_link(credentials: TrackLinkRequest, response: Response):
+    """Allow the recipient of a private tracking link to withdraw their application."""
+    response.headers["Cache-Control"] = "no-store"
+    not_found = HTTPException(
+        status_code=404,
+        detail="This tracking link is invalid or no longer available.",
+        headers={"Cache-Control": "no-store"},
+    )
+    try:
+        result = (
+            supabase.table("applications")
+            .select("id, status, email, status_updated_at")
+            .eq("track_token", str(credentials.token))
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            raise not_found
+        record = result.data[0]
+        return _withdraw_application_record(record, (record.get("email") or "").strip().lower())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Application link withdrawal failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Could not withdraw the application. Please try again.", headers={"Cache-Control": "no-store"}) from None
 
 
@@ -452,7 +522,12 @@ def get_applications(
     admin: dict = Depends(require_admin),
 ):
     try:
-        query = supabase.table("applications").select("*")
+        # Keep bearer tracking tokens out of the staff browser/API payload.
+        query = supabase.table("applications").select(
+            "id, job_id, candidate_name, email, phone_number, sms_updates_consent, "
+            "resume_url, resume_path, status, created_at, tracking_code, status_updated_at, "
+            "reviewer_notes, interview_at, interview_timezone, interview_location, interview_reschedule_url"
+        )
         if job_id:
             query = query.eq("job_id", job_id)
         response = query.execute()
