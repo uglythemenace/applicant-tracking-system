@@ -6,7 +6,7 @@ A candidate careers portal and recruiter workspace for posting jobs, receiving a
 
 - Public job endpoints return open, unexpired jobs only. Individual job pages show clear details and search-engine structured job data.
 - Staff can archive closed jobs from the main list and restore them later; archiving preserves their application history.
-- The admin dashboard includes applicant search and sorting, private notes, interview details, an activity log, and individual Supabase Auth sign-in.
+- The staff workspace combines job management, a candidate pipeline, upcoming interview and new-application counts, search, private notes, and the activity log under one sign-in.
 - The recruiter workspace uses a draggable hiring board with a list-view fallback and a candidate profile drawer for résumé access, private notes, interview details, and status changes.
 - Applications require a non-blank name and a valid email; résumé links must use HTTP or HTTPS. The backend rejects applications to closed or missing jobs.
 - Staff can permanently delete an individual application and its related notes, status history, identity claims, and uploaded résumé. Résumé object cleanup is queued and retried if storage is temporarily unavailable; the deletion audit stores only the actor and time.
@@ -85,6 +85,8 @@ On Linux, Playwright may also require browser system libraries; see `npx playwri
 
 All styling is in one plain file, `Frontend/static/style.css`, and all shared behavior (the menu, footer, staff sign-in, confirmation boxes, and the backend address `API_BASE`) is in `Frontend/static/script.js`. There is no build step. Edit a file, save it, and refresh the page.
 
+While working on the `redesign` branch, `API_BASE` points to the separate staging backend at `https://applicant-tracking-system-1-0g5l.onrender.com`. Before merging the frontend branch into `main`, change it back to the production backend URL and deploy the matching frontend and backend changes together. Do not use real applicant data for staging checks.
+
 ## Remaining work before real hiring
 
 - Configure `RETENTION_PURGE_TOKEN` in Render and GitHub, then confirm the scheduled workflow completes successfully. The retention workflow does not change the separate retention period used for provider backups.
@@ -92,5 +94,5 @@ All styling is in one plain file, `Frontend/static/style.css`, and all shared be
 - Staff access uses individual Supabase Auth accounts and an email allowlist. MFA setup and enforcement are not included in this change; add and verify that flow before relying on MFA. The backend verifies staff tokens against Supabase on protected requests; the service key remains backend-only.
 - Check log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.
 - Add complete, accurate job responsibilities and qualifications before publishing each role.
-- `/dashboard` is now a staff-only summary page that uses the same sign-in as `/admin`. `/post-job` redirects to `/admin`, where jobs are posted.
+- `/dashboard` redirects to the unified staff workspace at `/admin`. `/post-job` also redirects to `/admin`, where jobs are posted.
 - The public navigation does not display the staff admin sign-in; staff can open `/admin` directly.
