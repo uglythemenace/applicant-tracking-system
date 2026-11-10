@@ -37,6 +37,21 @@
             <p class="error-text" id="e-job">Choose a job from the list.</p>
           </div>
 
+          <div class="field" id="f-cv">
+            <label for="candidate-cv-file">Résumé file (optional)</label>
+            <span class="hint" id="h-cv">Upload a PDF or Word document (up to 8 MB), or paste a link below. Choose one option. Only the hiring team can access an uploaded file.</span>
+            <div class="resume-dropzone" id="resume-dropzone">
+              <span class="dropzone-icon" aria-hidden="true">↑</span>
+              <strong>Drop your résumé here</strong>
+              <span class="muted">PDF or DOCX, up to 8 MB</span>
+              <input type="file" id="candidate-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="h-cv e-cv">
+            </div>
+            <p id="resume-file-name" class="resume-file-name" aria-live="polite"></p>
+            <label for="candidate-cv" class="sub-label" style="display:block;margin-top:12px">Or paste a résumé link</label>
+            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="https://…" aria-describedby="h-cv e-cv">
+            <p class="error-text" id="e-cv">Choose a PDF or DOCX file up to 8 MB, or enter a valid web link, but not both.</p>
+          </div>
+
           <div class="field" id="f-name">
             <label for="candidate-name">Your full name (required)</label>
             <input type="text" id="candidate-name" autocomplete="name" maxlength="120" placeholder="For example: Maria Johnson" required aria-describedby="e-name">
@@ -59,21 +74,6 @@
               <span>Text me a private tracking link, my tracking code, and status updates if my application is accepted or rejected. Message and data rates may apply. Reply STOP to stop texts.</span>
             </label>
             <p class="error-text" id="e-phone">Enter a valid international number starting with +, or leave it blank.</p>
-          </div>
-
-          <div class="field" id="f-cv">
-            <label for="candidate-cv-file">Résumé file (optional)</label>
-            <span class="hint" id="h-cv">Upload a PDF or Word document (up to 8 MB), or paste a link below. Choose one option. Only the hiring team can access an uploaded file.</span>
-            <div class="resume-dropzone" id="resume-dropzone">
-              <span class="dropzone-icon" aria-hidden="true">↑</span>
-              <strong>Drop your résumé here</strong>
-              <span class="muted">PDF or DOCX, up to 8 MB</span>
-              <input type="file" id="candidate-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="h-cv e-cv">
-            </div>
-            <p id="resume-file-name" class="resume-file-name" aria-live="polite"></p>
-            <label for="candidate-cv" class="sub-label" style="display:block;margin-top:12px">Or paste a résumé link</label>
-            <input type="url" id="candidate-cv" maxlength="2048" inputmode="url" placeholder="https://…" aria-describedby="h-cv e-cv">
-            <p class="error-text" id="e-cv">Choose a PDF or DOCX file up to 8 MB, or enter a valid web link, but not both.</p>
           </div>
 
           <div id="status-message" role="alert" hidden></div>
@@ -337,6 +337,10 @@
       $(i).addEventListener('input', () => setError(f, $(i), false)));
     const resumeDropzone = $('resume-dropzone');
     const resumeFileInput = $('candidate-cv-file');
+    resumeDropzone.addEventListener('click', event => {
+      if (event.target === resumeFileInput) return;
+      resumeFileInput.click();
+    });
     resumeFileInput.addEventListener('change', () => {
       setError('f-cv', $('candidate-cv'), false);
       $('resume-file-name').textContent = resumeFileInput.files[0] ? 'Selected: ' + resumeFileInput.files[0].name : '';
