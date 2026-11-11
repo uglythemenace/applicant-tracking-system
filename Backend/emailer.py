@@ -2,8 +2,11 @@ import os
 import html
 import smtplib
 import ssl
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import formataddr
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 import resend
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
@@ -135,19 +138,134 @@ def send_application_received_sms(to: str, job_title: str, code: str) -> bool:
     return _send_sms(to, body)
 
 
-def send_status_update(to: str, name: str, job_title: str, status: str, code: str) -> bool:
+def _format_interview_time(interview_at: str | None, timezone_name: str | None) -> str | None:
+    """Turn the saved interview timestamp into a readable local time, or None."""
+    if not interview_at:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(interview_at).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    zone_label = "UTC"
+    if timezone_name:
+        try:
+            moment = moment.astimezone(ZoneInfo(timezone_name))
+            zone_label = timezone_name
+        except Exception:
+            moment = moment.astimezone(timezone.utc)
+    else:
+        moment = moment.astimezone(timezone.utc)
+    return f"{moment.strftime('%A, %d %B %Y at %H:%M')} ({zone_label})"
+
+
+def _interview_block(
+    interview_at: str | None,
+    interview_timezone: str | None,
+    interview_location: str | None,
+    interview_reschedule_url: str | None,
+) -> str:
+    """Interview details for the email, or a short note if none are set yet."""
+    when = _format_interview_time(interview_at, interview_timezone)
+    lines = []
+    if when:
+        lines.append(f"<b>When:</b> {html.escape(when)}")
+    if interview_location:
+        lines.append(f"<b>Where:</b> {html.escape(interview_location)}")
+    if interview_reschedule_url:
+        parsed = urlsplit(interview_reschedule_url)
+        if parsed.scheme in {"http", "https"} and parsed.hostname:
+            safe_url = html.escape(interview_reschedule_url, quote=True)
+            lines.append(f'<b>Need a different time?</b> <a href="{safe_url}">Reschedule here</a>')
+    if not lines:
+        return "<p>The team will share the interview time and place soon. You will find them on your tracking page as soon as they are added.</p>"
+    return '<p style="background:#f3f6fb;border-radius:8px;padding:12px 16px">' + "<br>".join(lines) + "</p>"
+
+
+def _status_email_content(
+    status: str,
+    name: str,
+    job_title: str,
+    interview_block: str,
+) -> tuple[str, str, str]:
+    """Return (subject, heading, body HTML). The subject is plain text; the body is escaped."""
+    subject_title = " ".join(job_title.split())
     name = html.escape(name or "there")
     job_title = html.escape(job_title)
-    status = html.escape(status)
+    jobs_url = f"{FRONTEND_URL}/jobs"
+    key = (status or "").strip().lower()
+    if key == "pending":
+        return (
+            f"Your application is waiting for review: {subject_title}",
+            "Your application is in the queue",
+            f"<p>Hi {name}, your application for <b>{job_title}</b> is waiting for review. We will email you as soon as something changes.</p>",
+        )
+    if key == "reviewing":
+        return (
+            f"Your application is being reviewed: {subject_title}",
+            "Someone is reading your application",
+            f"<p>Hi {name}, the hiring team has started reviewing your application for <b>{job_title}</b>. Nothing else is needed from you right now.</p>",
+        )
+    if key == "interview":
+        return (
+            f"You are moving to the interview stage: {subject_title}",
+            "You are moving to the interview stage",
+            f"<p>Hi {name}, thank you for your interest. The hiring team would like to talk with you about <b>{job_title}</b>.</p>{interview_block}",
+        )
+    if key == "accepted":
+        return (
+            f"Good news about your application: {subject_title}",
+            "Congratulations, you have been accepted",
+            f"<p>Hi {name}, the hiring team has accepted your application for <b>{job_title}</b>. They will contact you about the next steps. You can also check your tracking page for details.</p>",
+        )
+    if key == "rejected":
+        return (
+            f"An update on your application: {subject_title}",
+            "Thank you for applying",
+            f"<p>Hi {name}, thank you for the time and care you put into applying for <b>{job_title}</b>.</p>"
+            "<p>After careful consideration, the team has decided not to move forward with your application this time. "
+            "We know this is not the news you hoped for, and we truly appreciate your interest.</p>"
+            f'<p>You are welcome to look at our other open roles: <a href="{jobs_url}">{jobs_url}</a></p>',
+        )
+    if key == "withdrawn":
+        return (
+            f"Your application was withdrawn: {subject_title}",
+            "Your application was withdrawn",
+            f"<p>Hi {name}, your application for <b>{job_title}</b> has been withdrawn. You can apply again for any open role whenever you are ready.</p>",
+        )
+    # Unknown or future statuses still produce a clear, readable message.
+    readable = html.escape(key.replace("_", " ").capitalize()) if key else "Updated"
+    return (
+        f"Update on your application: {subject_title}",
+        "Your application was updated",
+        f"<p>Hi {name}, there is news on your application for <b>{job_title}</b>.</p><p>New status: <b>{readable}</b></p>",
+    )
+
+
+def send_status_update(
+    to: str,
+    name: str,
+    job_title: str,
+    status: str,
+    code: str,
+    interview_at: str | None = None,
+    interview_timezone: str | None = None,
+    interview_location: str | None = None,
+    interview_reschedule_url: str | None = None,
+) -> bool:
     track_url = f"{FRONTEND_URL}/track"
+    interview_block = _interview_block(
+        interview_at, interview_timezone, interview_location, interview_reschedule_url
+    )
+    subject, heading, content = _status_email_content(status, name, job_title, interview_block)
     body = _wrap(f"""
-      <h2>Your application was updated</h2>
-      <p>Hi {name}, there is news on your application for <b>{job_title}</b>.</p>
-      <p>New status: <b>{status}</b></p>
-      <p>Tracking code: {html.escape(code)}<br>
-      <a href="{track_url}">Check your status</a></p>
+      <h2>{heading}</h2>
+      {content}
+      <p style="margin-top:24px">Tracking code: <b>{html.escape(code)}</b><br>
+      <a href="{track_url}">Check your application any time</a></p>
     """)
-    return _send(to, f"Update on your application: {job_title}", body)
+    return _send(to, subject, body)
 
 
 def send_status_sms(to: str, job_title: str, status: str) -> bool:

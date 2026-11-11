@@ -625,6 +625,10 @@ def update_application_status(
             job_title,
             saved["status"],
             saved.get("tracking_code", ""),
+            saved.get("interview_at"),
+            saved.get("interview_timezone"),
+            saved.get("interview_location"),
+            saved.get("interview_reschedule_url"),
         )
         final_states = {
             "accepted", "approved", "hired", "offer", "offered",

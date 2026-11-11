@@ -41,7 +41,7 @@
       <section class="action-brief" id="action-summary" aria-labelledby="action-brief-title">
         <div class="action-brief-heading">
           <div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="action-brief-title">Needs action</h2></div>
-          <p class="muted">A quick view of new applications and upcoming interviews.</p>
+          <p class="muted">A quick view of new applications, upcoming interviews and candidates who have been waiting too long.</p>
         </div>
         <div class="action-brief-grid">
           <article class="action-brief-card">
@@ -53,6 +53,11 @@
             <p class="action-brief-label">Upcoming interviews · this week</p>
             <p class="action-brief-number" id="weekly-interviews-count" aria-live="polite">—</p>
             <a href="#apps-title" class="action-brief-link" data-action-filter="interviews">View this week’s interviews <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="action-brief-card">
+            <p class="action-brief-label">Waiting 5+ days · needs a decision</p>
+            <p class="action-brief-number" id="stuck-count" aria-live="polite">—</p>
+            <a href="#apps-title" class="action-brief-link" data-action-filter="stuck">See who is waiting <span aria-hidden="true">→</span></a>
           </article>
         </div>
       </section>
@@ -370,7 +375,7 @@
     }
 
     // ----- Applications -----
-    const FILTERS = [['all', 'Everyone'], ['new', 'New this week'], ['interviews', 'Interviews this week'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
+    const FILTERS = [['all', 'Everyone'], ['new', 'New this week'], ['interviews', 'Interviews this week'], ['stuck', 'Waiting 5+ days'], ['pending', 'Waiting for review'], ['reviewing', 'Being reviewed'], ['interview', 'Interview'], ['accepted', 'Accepted'], ['rejected', 'Not selected'], ['withdrawn', 'Withdrawn']];
     const APPLICANTS_PER_PAGE = 10;
     let applicantPage = 1;
     const pipelinePages = Object.create(null);
@@ -395,9 +400,35 @@
       return Number.isFinite(when) && when >= now && when < end;
     }
 
+    // A candidate is "waiting" when they sit in an open stage for this many days.
+    const STUCK_DAYS = 5;
+    const OPEN_STAGES = ['pending', 'reviewing', 'interview'];
+
+    function daysInStage(app) {
+      if (!OPEN_STAGES.includes(app.status)) return null;
+      const since = Date.parse(app.status_updated_at || app.created_at || '');
+      if (!Number.isFinite(since) || since > Date.now()) return 0;
+      return Math.floor((Date.now() - since) / (24 * 60 * 60 * 1000));
+    }
+
+    function isStuck(app) {
+      const days = daysInStage(app);
+      return days !== null && days >= STUCK_DAYS;
+    }
+
+    function stageAgeLabel(app) {
+      const days = daysInStage(app);
+      if (days === null) return null;
+      return L2E.el('span', {
+        class: 'stage-age' + (days >= STUCK_DAYS ? ' is-stale' : ''),
+        text: days === 0 ? 'In this stage today' : 'In this stage ' + days + (days === 1 ? ' day' : ' days')
+      });
+    }
+
     function matchesFilter(app, value) {
       if (value === 'new') return isNewApplication(app);
       if (value === 'interviews') return isInterviewThisWeek(app);
+      if (value === 'stuck') return isStuck(app);
       return value === 'all' || app.status === value;
     }
 
@@ -411,6 +442,7 @@
       }));
       $('new-applications-count').textContent = applicants.filter(isNewApplication).length;
       $('weekly-interviews-count').textContent = applicants.filter(isInterviewThisWeek).length;
+      $('stuck-count').textContent = applicants.filter(isStuck).length;
     }
 
     const PIPELINE_STAGES = [
@@ -464,7 +496,8 @@
             open,
             L2E.el('div', { class: 'candidate-card-meta' },
               L2E.el('span', { text: app.email }),
-              L2E.el('span', { text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })));
+              L2E.el('span', { text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' }),
+              stageAgeLabel(app)));
           card.addEventListener('dragstart', event => {
             if (app.status === 'withdrawn') { event.preventDefault(); return; }
             event.dataTransfer.setData('text/plain', String(app.id));
