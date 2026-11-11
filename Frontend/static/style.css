@@ -1185,3 +1185,102 @@ body[data-page="admin"] :focus-visible { outline-color: var(--brand); }
 @media (prefers-reduced-motion: reduce) {
   body[data-page="admin"] .candidate-card { animation: none; }
 }
+
+/* ---------- Rolebeam beam identity: light candidate pages, electric signal ---------- */
+:root {
+  --ink: #10263b;
+  --ink-soft: #4c6579;
+  --paper: #f9fbfd;
+  --mist: #edf3f8;
+  --line: #d5e2ec;
+  --edge: #7f96a9;
+  --brand: #0b6486;
+  --brand-dark: #084b66;
+  --brand-tint: #e0f1f9;
+  --signal: #12b7e6;
+}
+::selection { background: #12b7e633; }
+:focus-visible { outline-color: var(--brand); }
+input:focus, select:focus, textarea:focus { outline-color: #0b64862b; border-color: var(--brand); }
+
+/* Scrollbars drawn in the product's own palette, light and dark. */
+html { scrollbar-color: #9db4c6 var(--mist); }
+html:has(body[data-page="admin"]) { scrollbar-color: #3c5570 #0b121c; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: #b9cbd9; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #8fa7bb; background-clip: padding-box; }
+html:has(body[data-page="admin"])::-webkit-scrollbar-thumb { background: #35506b; background-clip: padding-box; }
+html:has(body[data-page="admin"])::-webkit-scrollbar-thumb:hover { background: #58d4ff; background-clip: padding-box; }
+.pipeline-board, .candidate-drawer, .command-list, .table-wrap, .workspace-sidebar nav { scrollbar-width: thin; }
+body[data-page="admin"] .pipeline-board,
+body[data-page="admin"] .candidate-drawer,
+body[data-page="admin"] .command-list,
+body[data-page="admin"] .table-wrap,
+body[data-page="admin"] .workspace-sidebar nav { scrollbar-color: #3c5570 transparent; }
+
+/* Layered beam atmosphere behind the hero. */
+.hero {
+  background:
+    repeating-linear-gradient(0deg, #0b648607 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(90deg, #0b648607 0 1px, transparent 1px 46px),
+    radial-gradient(52rem 30rem at 88% -12%, #12b7e624, transparent 62%),
+    radial-gradient(40rem 26rem at -14% 112%, #0b64861c, transparent 60%),
+    linear-gradient(150deg, #f3f8fb, #e9f1f7 55%, #eef5fa);
+}
+.hero::before { background: #9adcf0; opacity: .5; animation: hero-drift 16s ease-in-out infinite alternate; }
+.hero::after { border-color: #0b648622; box-shadow: 0 0 0 34px #0b64860a, 0 0 0 70px #0b648606; }
+@keyframes hero-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-46px, 34px, 0); } }
+.kicker-dot { background: var(--signal); box-shadow: 0 0 0 5px #12b7e622, 0 0 14px #12b7e666; }
+.hero .panel.live { border-top: 3px solid var(--signal); box-shadow: 0 24px 70px #0b64861c; }
+
+/* Staged entrance, kept short and calm. */
+@keyframes rise-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.hero .wrap > div > * { animation: rise-in .5s ease-out both; }
+.hero .wrap > div > :nth-child(2) { animation-delay: .08s; }
+.hero .wrap > div > :nth-child(3) { animation-delay: .16s; }
+.hero .wrap > div > :nth-child(4) { animation-delay: .24s; }
+.hero .panel.live { animation: fade-in .6s ease-out .18s both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.page-head > * { animation: rise-in .45s ease-out both; }
+.page-head > :nth-child(2) { animation-delay: .07s; }
+.page-head > :nth-child(3) { animation-delay: .14s; }
+.job-list .job { animation: rise-in .4s ease-out both; }
+.job-list .job:nth-child(2) { animation-delay: .06s; }
+.job-list .job:nth-child(3) { animation-delay: .12s; }
+.job-list .job:nth-child(n+4) { animation-delay: .18s; }
+
+/* Hiring-now cards: title gets the full card width so long titles wrap at words. */
+.mini-jobs li { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: start; }
+.mini-jobs .mini-title { font-size: .95rem; }
+.mini-jobs .btn { justify-self: start; min-height: 38px; padding: 0 14px; font-size: .8rem; }
+
+/* Signal accents shared with the staff workspace. */
+.steps li::before { color: #063a4f; background: #c9ecf8; }
+.status-orb { background: var(--signal); box-shadow: 0 0 0 6px #12b7e622; }
+.status-rejected .status-orb { background: #b44d51; box-shadow: 0 0 0 6px #b44d5120; }
+.timeline-marker { border-color: #bfe4f2; background: var(--brand); }
+.next-step { border-color: #c4dcea; background: #e4f1f8; }
+.next-step-icon { color: var(--brand-dark); background: #cfe9f5; }
+.job-open, .job-open::before { color: var(--brand); }
+.job-open::before { background: var(--signal); }
+.ticket { background: var(--brand-tint); border-color: #9cc8dd; }
+.ticket-stub { border-color: #9cc8dd; }
+.ticket-stub::before, .ticket-stub::after { border-color: #9cc8dd; }
+.btn-primary:hover { box-shadow: 0 6px 18px #0b648633; }
+.btn-secondary { border-color: #aecbdc; }
+.brand-mark { border-color: #12b7e640; box-shadow: 0 6px 18px #0b648630, inset 0 1px #ffffff20; }
+.footer-row a:hover { color: #7ae0ff; }
+.data th { background: var(--mist); }
+
+/* Résumé dropzone: the whole zone opens the picker; the native chrome is restyled. */
+.resume-dropzone { cursor: pointer; grid-template-columns: minmax(0, 1fr); }
+.resume-dropzone input[type="file"] { width: auto; min-width: 0; max-width: 100%; color: transparent; }
+.resume-dropzone input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 8px 16px; border: 1px solid #aecbdc; border-radius: 999px;
+  color: var(--brand-dark); background: #fff; font: 600 .82rem var(--sans); cursor: pointer;
+}
+.resume-dropzone input[type="file"]::file-selector-button:hover { background: var(--brand-tint); }
+
+/* Keep scrolled dashboards clear of the sticky header. */
+#status-dashboard { scroll-margin-top: 88px; }
