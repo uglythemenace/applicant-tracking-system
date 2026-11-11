@@ -63,6 +63,11 @@ class StaffRefresh(BaseModel):
     refresh_token: str = Field(min_length=20, max_length=4096)
 
 
+class StaffPasswordUpdate(BaseModel):
+    access_token: str = Field(min_length=20, max_length=4096)
+    password: str = Field(min_length=8, max_length=256)
+
+
 def _session_response(session: dict) -> dict:
     user = session.get("user") or {}
     email = _assert_admin_email(user.get("email", ""))
@@ -86,6 +91,19 @@ def staff_login(credentials: StaffLogin):
         return _session_response(session)
     except KeyError:
         raise HTTPException(status_code=502, detail="The sign-in service returned an incomplete session") from None
+
+
+@router.post("/password")
+def update_staff_password(credentials: StaffPasswordUpdate):
+    user = _auth_request("user", access_token=credentials.access_token)
+    email = _assert_admin_email(user.get("email", ""))
+    _auth_request(
+        "user",
+        method="PUT",
+        payload={"password": credentials.password},
+        access_token=credentials.access_token,
+    )
+    return {"user": {"email": email}}
 
 
 @router.post("/refresh")
