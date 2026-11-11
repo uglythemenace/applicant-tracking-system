@@ -89,14 +89,23 @@ All styling is in one plain file, `Frontend/static/style.css`, and all shared be
 
 While working on the `redesign` branch, `API_BASE` points to the separate staging backend at `https://applicant-tracking-system-1-0g5l.onrender.com`. Before merging the frontend branch into `main`, change it back to the production backend URL and deploy the matching frontend and backend changes together. Do not use real applicant data for staging checks.
 
-Before testing staging confirmation links, set `FRONTEND_URL` on the staging Render service to the Vercel preview URL for the `redesign` branch. The default points to the production frontend.
+For staging tracking links, the Render staging service has `FRONTEND_URL` set to the Vercel preview for `redesign`. When creating another staging service, set this before testing; the default points to production.
+
+## Delivered on `redesign`
+
+- `/admin` is the unified recruiter workspace; `/dashboard` and `/post-job` redirect there.
+- Applicants can use private tracking links or the existing email-and-code fallback, with a timeline of status changes.
+- The recruiter workspace includes Cmd/Ctrl+K quick actions and candidate pipeline actions.
+- The recruiter view uses a dark theme; candidate pages use the Rolebeam beam identity.
+- Applying is a single-screen flow with résumé first, inline validation, and immediate confirmation.
+- Staging uses separate free-tier Render and Supabase projects. Keep real applicant data out of staging.
 
 ## Remaining work before real hiring
 
-- Configure `RETENTION_PURGE_TOKEN` in Render and GitHub, then confirm the scheduled workflow completes successfully. The retention workflow does not change the separate retention period used for provider backups.
-- Provide a secure way to recover a lost tracking code. Email sends the code when the selected provider is configured correctly.
-- Staff access uses individual Supabase Auth accounts and an email allowlist. MFA setup and enforcement are not included in this change; add and verify that flow before relying on MFA. The backend verifies staff tokens against Supabase on protected requests; the service key remains backend-only.
-- Check log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.
-- Add complete, accurate job responsibilities and qualifications before publishing each role.
-- `/dashboard` redirects to the unified staff workspace at `/admin`. `/post-job` also redirects to `/admin`, where jobs are posted.
-- The public navigation does not display the staff admin sign-in; staff can open `/admin` directly.
+- Configure `RETENTION_PURGE_TOKEN` in Render and GitHub, then verify the scheduled retention workflow. This does not change the separate provider-backup retention period.
+- Configure and verify email delivery so applicants can recover their tracking code from the receipt message.
+- Run a human-paced application timing check against the under-60-second target. A local mock-browser submission passed, but it does not establish real applicant completion time.
+- Add and verify MFA before relying on staff access for real hiring. Staff tokens are checked against Supabase; keep the service key backend-only.
+- Review log settings and avoid recording tracking request bodies or applicant data. POST reduces URL exposure but does not prevent all logging.
+- Add complete, accurate responsibilities and qualifications before publishing each role.
+- After the core application flow feels effortless, consider AI résumé parsing and chat/SMS applying. Those integrations are not connected yet.
