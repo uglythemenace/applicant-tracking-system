@@ -181,18 +181,31 @@ const L2E = (() => {
   }
 
   function mountLogin() {
+    const authParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const recoveryToken = authParams.get("type") === "recovery" ? authParams.get("access_token") : "";
+    const recoveryRefreshToken = recoveryToken ? authParams.get("refresh_token") : "";
     const emailInput = el("input", { type: "email", id: "staff-email-input", required: true, autocomplete: "username", inputmode: "email" });
     const passwordInput = el("input", { type: "password", id: "staff-password-input", required: true, autocomplete: "current-password" });
-    const form = el("form", { class: "panel stack" },
+    const loginForm = el("form", { class: "panel stack" },
       el("div", {}, el("h2", { id: "login-title", text: "Staff sign in" }), el("p", { class: "muted", text: "Sign in with your approved staff account." })),
       el("div", { class: "field" }, el("label", { for: "staff-email-input", text: "Staff email" }), emailInput),
       el("div", { class: "field" }, el("label", { for: "staff-password-input", text: "Password" }), passwordInput),
       el("p", { id: "login-error", class: "alert alert-bad", role: "alert", hidden: true }),
       el("button", { type: "submit", class: "btn btn-primary btn-block", text: "Sign in" })
     );
-    form.addEventListener("submit", async (e) => {
+    const newPasswordInput = el("input", { type: "password", id: "staff-new-password", required: true, minlength: "8", autocomplete: "new-password" });
+    const confirmPasswordInput = el("input", { type: "password", id: "staff-confirm-password", required: true, minlength: "8", autocomplete: "new-password" });
+    const resetError = el("p", { id: "password-reset-error", class: "alert alert-bad", role: "alert", hidden: true });
+    const resetForm = el("form", { class: "panel stack" },
+      el("div", {}, el("h2", { id: "password-reset-title", text: "Set your staff password" }), el("p", { class: "muted", text: "Choose a new password with at least 8 characters." })),
+      el("div", { class: "field" }, el("label", { for: "staff-new-password", text: "New password" }), newPasswordInput),
+      el("div", { class: "field" }, el("label", { for: "staff-confirm-password", text: "Confirm new password" }), confirmPasswordInput),
+      resetError,
+      el("button", { type: "submit", class: "btn btn-primary btn-block", text: "Save password" })
+    );
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const button = form.querySelector('button[type="submit"]');
+      const button = loginForm.querySelector('button[type="submit"]');
       button.disabled = true; button.textContent = "Signing in…";
       try {
         const response = await request("/auth/login", { method: "POST", body: { email: emailInput.value.trim(), password: passwordInput.value } });
@@ -206,8 +219,45 @@ const L2E = (() => {
         errorBox.textContent = error.message || "Could not sign in. Try again."; errorBox.hidden = false;
       } finally { button.disabled = false; button.textContent = "Sign in"; }
     });
-    const overlay = el("div", { id: "login-overlay", class: "overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "login-title", hidden: true }, form);
+    resetForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      resetError.hidden = true;
+      if (!recoveryToken || !recoveryRefreshToken) {
+        resetError.textContent = "This recovery link is incomplete. Request a new password recovery email."; resetError.hidden = false; return;
+      }
+      if (newPasswordInput.value !== confirmPasswordInput.value) {
+        resetError.textContent = "The passwords do not match."; resetError.hidden = false; return;
+      }
+      const button = resetForm.querySelector('button[type="submit"]');
+      button.disabled = true; button.textContent = "Saving…";
+      try {
+        const response = await request("/auth/password", { method: "POST", body: { access_token: recoveryToken, password: newPasswordInput.value } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Could not update the password. Request a fresh recovery email.");
+        staffSession = {
+          access_token: recoveryToken,
+          refresh_token: recoveryRefreshToken,
+          expires_at: Date.now() + Number(authParams.get("expires_in") || 3600) * 1000,
+          user: data.user
+        };
+        try { sessionStorage.setItem("staffSession", JSON.stringify(staffSession)); } catch (err) { /* storage blocked */ }
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        newPasswordInput.value = ""; confirmPasswordInput.value = "";
+        overlay.hidden = true; setPageLocked(false); onReady();
+      } catch (error) {
+        resetError.textContent = error.message || "Could not update the password. Try again."; resetError.hidden = false;
+      } finally { button.disabled = false; button.textContent = "Save password"; }
+    });
+    const overlay = el("div", { id: "login-overlay", class: "overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": recoveryToken ? "password-reset-title" : "login-title", hidden: true }, loginForm, resetForm);
+    loginForm.hidden = Boolean(recoveryToken);
+    resetForm.hidden = !recoveryToken;
     document.body.append(overlay);
+    if (recoveryToken) {
+      setPageLocked(true); overlay.hidden = false; newPasswordInput.focus();
+    } else {
+      const authError = authParams.get("error_code");
+      showLogin(authError === "otp_expired" ? "That recovery link expired. Request a new password recovery email." : "");
+    }
   }
 
   function signOut() {
