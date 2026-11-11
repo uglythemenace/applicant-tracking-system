@@ -28,7 +28,7 @@ Nothing in this copy deploys automatically. Apply the Supabase SQL migrations in
 
 The staff page now uses individual Supabase Auth accounts. In Supabase, create an Auth user for each staff member, then set `SUPABASE_ANON_KEY` and a comma-separated `ADMIN_EMAILS` allowlist in Render. Keep `SUPABASE_KEY` as the service-role key used by the backend; never expose that key to the frontend. The `ADMIN_API_KEY` remains only as a fallback secret for duplicate-attempt hash generation, not as staff login. Set `PUBLIC_CONTACT_EMAIL` in Render to show the hiring team's contact address on `/contact`.
 
-To enable the 12-month applicant retention schedule, generate a unique random `RETENTION_PURGE_TOKEN`. Set it as an environment variable in the Render backend and as a repository secret with the exact same name under GitHub **Settings → Secrets and variables → Actions**. The `Applicant data retention` workflow calls the backend once daily and can also be run manually from GitHub Actions. It purges only accepted, rejected, or withdrawn applications whose `status_updated_at` is at least 12 months old. Résumé files are queued for storage cleanup and retried by the backend. Do not reuse the Supabase service key or another existing secret for this token.
+To enable the 12-month applicant retention schedule, generate a unique random `RETENTION_PURGE_TOKEN`. Set matching environment-specific values in the Render backend and in GitHub Actions environments: `staging` for the `redesign` branch and `production` for `main`. Use different random values. The workflow targets staging on `redesign` and production on `main`, and can also be run manually from GitHub Actions. It purges only accepted, rejected, or withdrawn applications whose `status_updated_at` is at least 12 months old. Résumé files are queued for storage cleanup and retried by the backend. Do not reuse the Supabase service key or another existing secret for this token.
 
 Email and SMS delivery configuration is documented below and can be completed separately. The application confirmation still displays the tracking code if a messaging provider is unavailable.
 
@@ -102,7 +102,7 @@ For staging tracking links, the Render staging service has `FRONTEND_URL` set to
 
 ## Remaining work before real hiring
 
-- Configure `RETENTION_PURGE_TOKEN` in Render and GitHub, then verify the scheduled retention workflow. This does not change the separate provider-backup retention period.
+- Configure separate `RETENTION_PURGE_TOKEN` values on the staging and production Render services and in the matching GitHub Actions environments. Verify the staging workflow first. The retention workflow does not change provider-backup retention.
 - Configure and verify email delivery so applicants can recover their tracking code from the receipt message.
 - Run a human-paced application timing check against the under-60-second target. A local mock-browser submission passed, but it does not establish real applicant completion time.
 - Add and verify MFA before relying on staff access for real hiring. Staff tokens are checked against Supabase; keep the service key backend-only.
