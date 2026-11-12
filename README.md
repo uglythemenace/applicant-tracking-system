@@ -85,7 +85,7 @@ On Linux, Playwright may also require browser system libraries; see `npx playwri
 
 All styling is in one plain file, `Frontend/static/style.css`, and all shared behavior (the menu, footer, staff sign-in, confirmation boxes, and the backend address `API_BASE`) is in `Frontend/static/script.js`. There is no build step. Edit a file, save it, and refresh the page.
 
-While working on the `redesign` branch, `API_BASE` points to the separate staging backend at `https://applicant-tracking-system-1-0g5l.onrender.com`. Before merging the frontend branch into `main`, change it back to the production backend URL and deploy the matching frontend and backend changes together. Do not use real applicant data for staging checks.
+`API_BASE` points to the production backend at `https://applicant-tracking-system-tbaw.onrender.com`. To test against a separate staging backend (for example `https://applicant-tracking-system-1-0g5l.onrender.com`), change it temporarily and switch it back before merging into `main`. Deploy matching frontend and backend changes together. Do not use real applicant data for staging checks.
 
 ## Remaining work before real hiring
 
