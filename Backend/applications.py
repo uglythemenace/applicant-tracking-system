@@ -15,8 +15,10 @@ from starlette.datastructures import UploadFile
 from auth import require_admin
 from database import supabase
 from emailer import (
+    interview_email_kind,
     send_application_received,
     send_application_received_sms,
+    send_interview_scheduled,
     send_status_sms,
     send_status_update,
 )
@@ -616,6 +618,20 @@ def update_application_status(
         except Exception:
             logger.exception("Could not write application audit record")
         if not status_changed:
+            kind = interview_email_kind(current, changes, saved, status_changed)
+            if kind:
+                background_tasks.add_task(
+                    send_interview_scheduled,
+                    saved["email"],
+                    saved.get("candidate_name") or "",
+                    get_job_title(saved.get("job_id")),
+                    saved.get("tracking_code", ""),
+                    saved.get("interview_at"),
+                    saved.get("interview_timezone"),
+                    saved.get("interview_location"),
+                    saved.get("interview_reschedule_url"),
+                    kind == "updated",
+                )
             return saved
         job_title = get_job_title(saved.get("job_id"))
         background_tasks.add_task(

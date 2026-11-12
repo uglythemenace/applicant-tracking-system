@@ -76,3 +76,48 @@ def test_bad_timezone_and_unsafe_link_are_handled(monkeypatch):
     body = sent[0][1]
     assert "22:30 (UTC)" in body
     assert "javascript:" not in body
+
+
+# ---- Interview scheduled / rescheduled emails ----
+
+def _kind(previous_at, new_at, changes_has_time=True, status="interview", status_changed=False):
+    previous = {"interview_at": previous_at}
+    saved = {"interview_at": new_at, "status": status}
+    changes = {"interview_at": new_at} if changes_has_time else {"reviewer_notes": "x"}
+    return emailer.interview_email_kind(previous, changes, saved, status_changed)
+
+
+def test_first_interview_time_sends_a_scheduled_email():
+    assert _kind(None, "2026-11-18T22:30:00+00:00") == "scheduled"
+
+
+def test_moved_interview_time_sends_an_updated_email():
+    assert _kind("2026-11-18T22:30:00+00:00", "2026-11-19T22:30:00+00:00") == "updated"
+
+
+def test_saving_notes_with_the_same_time_sends_nothing():
+    # The staff form resends the interview time with every save, in a different text format.
+    assert _kind("2026-11-18T22:30:00+00:00", "2026-11-18T22:30:00Z") is None
+    assert _kind("2026-11-18T22:30:00+00:00", "2026-11-18T22:30:00+00:00", changes_has_time=False) is None
+
+
+def test_clearing_the_time_or_closed_applications_send_nothing():
+    assert _kind("2026-11-18T22:30:00+00:00", None) is None
+    assert _kind(None, "2026-11-18T22:30:00+00:00", status="rejected") is None
+    assert _kind(None, "2026-11-18T22:30:00+00:00", status="withdrawn") is None
+
+
+def test_a_status_change_does_not_send_a_second_email():
+    assert _kind(None, "2026-11-18T22:30:00+00:00", status_changed=True) is None
+
+
+def test_scheduled_and_updated_emails_read_differently(monkeypatch):
+    sent = _capture(monkeypatch)
+    args = ("a@example.com", "Maria", "Dev & Ops", "L2E-X", "2026-11-18T22:30:00+00:00", "America/Los_Angeles", "Room 4", None)
+    emailer.send_interview_scheduled(*args)
+    emailer.send_interview_scheduled(*args, updated=True)
+    (s1, b1), (s2, b2) = sent
+    assert s1 == "Your interview is scheduled: Dev & Ops"
+    assert s2 == "Your interview time has changed: Dev & Ops"
+    assert "Wednesday, 18 November 2026 at 14:30 (America/Los_Angeles)" in b1 and "Room 4" in b1
+    assert "Dev &amp; Ops" in b2 and "new details" in b2

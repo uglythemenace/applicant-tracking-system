@@ -275,3 +275,68 @@ def send_status_sms(to: str, job_title: str, status: str) -> bool:
         "Check your email for details from the hiring team. Reply STOP to stop texts."
     )
     return _send_sms(to, body)
+
+
+def _parse_moment(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def interview_email_kind(previous: dict, changes: dict, saved: dict, status_changed: bool) -> str | None:
+    """Decide whether saving interview details should email the candidate.
+
+    Returns "scheduled" for a first interview time, "updated" when the time
+    moved, or None. A status change already sends its own email with the
+    details, and closed applications are never emailed about interviews.
+    """
+    if status_changed or "interview_at" not in changes:
+        return None
+    if str(saved.get("status") or "").lower() in {"rejected", "withdrawn"}:
+        return None
+    new_time = _parse_moment(saved.get("interview_at"))
+    if new_time is None:
+        return None
+    old_time = _parse_moment(previous.get("interview_at"))
+    if old_time is None:
+        return "scheduled"
+    return None if old_time == new_time else "updated"
+
+
+def send_interview_scheduled(
+    to: str,
+    name: str,
+    job_title: str,
+    code: str,
+    interview_at: str | None,
+    interview_timezone: str | None = None,
+    interview_location: str | None = None,
+    interview_reschedule_url: str | None = None,
+    updated: bool = False,
+) -> bool:
+    safe_name = html.escape(name or "there")
+    safe_title = html.escape(job_title)
+    subject_title = " ".join(job_title.split())
+    track_url = f"{FRONTEND_URL}/track"
+    details = _interview_block(
+        interview_at, interview_timezone, interview_location, interview_reschedule_url
+    )
+    if updated:
+        subject = f"Your interview time has changed: {subject_title}"
+        heading = "Your interview time has changed"
+        intro = f"<p>Hi {safe_name}, the time for your interview about <b>{safe_title}</b> has been updated. Please use the new details below.</p>"
+    else:
+        subject = f"Your interview is scheduled: {subject_title}"
+        heading = "Your interview is scheduled"
+        intro = f"<p>Hi {safe_name}, the hiring team has set a time to talk with you about <b>{safe_title}</b>.</p>"
+    body = _wrap(f"""
+      <h2>{heading}</h2>
+      {intro}{details}
+      <p style="margin-top:24px">Tracking code: <b>{html.escape(code)}</b><br>
+      <a href="{track_url}">See your interview details any time</a></p>
+    """)
+    return _send(to, subject, body)
