@@ -900,7 +900,7 @@ body[data-page="admin"] .workspace-sidebar, body[data-page="dashboard"] .workspa
 .action-brief-heading .eyebrow { margin-bottom: 5px; color: var(--brand-dark); font-size: .68rem; font-weight: 800; letter-spacing: .14em; }
 .action-brief-heading h2 { margin: 0; font-size: 1.35rem; }
 .action-brief-heading > p { margin: 0 0 2px; font-size: .86rem; }
-.action-brief-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.action-brief-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
 .action-brief-card { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 16px; padding: 16px 18px; border: 1px solid #dce5ed; border-radius: 14px; background: var(--paper); }
 .action-brief-label { grid-column: 1 / -1; margin: 0; color: var(--ink-soft); font-size: .78rem; font-weight: 650; }
 .action-brief-number { margin: 0; font-size: 2rem; font-weight: 800; line-height: 1; letter-spacing: -.05em; }
@@ -934,6 +934,7 @@ body[data-page="admin"] .two-col > .panel { background: var(--paper); }
 .candidate-card-job { overflow: hidden; color: var(--ink-soft); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .candidate-card-meta { display: grid; gap: 5px; margin: 10px 0 0 43px; color: #6b7280; font-size: .66rem; }
 .candidate-card-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-age.is-stale { color: #b45309; font-weight: 700; }
 .pipeline-column-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 34px; margin-top: 8px; padding-top: 7px; border-top: 1px solid #d4dee8; }
 .stage-page-summary { color: var(--ink-soft); font-size: .66rem; white-space: nowrap; }
 .pagination-arrow { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #c7d5e2; border-radius: 8px; color: var(--brand-dark); background: #f7f9fc; font: 700 1.15rem/1 var(--sans); cursor: pointer; }
