@@ -52,9 +52,10 @@
 
           <div class="field" id="f-phone">
             <label for="candidate-phone">Phone number (optional)</label>
-            <span class="hint" id="h-phone">Each phone number can be used once. For text updates, include your country code, for example +1 555 123 4567.</span>
+            <span class="hint" id="h-phone">Each phone number can be used once. Include your country code, for example +1 555 123 4567.</span>
             <input type="tel" id="candidate-phone" autocomplete="tel" inputmode="tel" maxlength="30" placeholder="+1 555 123 4567" aria-describedby="h-phone e-phone">
-            <label class="sms-consent" for="sms-updates-opt-in">
+            <!-- Text updates are switched off until an SMS provider is set up. Remove "hidden" to bring this back. -->
+            <label class="sms-consent" for="sms-updates-opt-in" hidden>
               <input type="checkbox" id="sms-updates-opt-in">
               <span>Text me my tracking code and updates if my application is accepted or rejected. Message and data rates may apply. Reply STOP to stop texts.</span>
             </label>
@@ -258,7 +259,7 @@
           ? 'Your tracking email was accepted for ' + email + '. If it does not arrive soon, check your spam folder. Keep the code below as a backup.'
           : emailSent === false
             ? 'We could not send the tracking email to ' + email + '. Your application is saved. Save the code below to check your status.'
-            : 'Your application was submitted, but this server did not report email delivery. Save your tracking code below and check your inbox and spam folder for a copy.';
+            : 'Your application was submitted. We are trying to email a copy of your tracking code to ' + email + ', but email can be slow or may not arrive. Save the code below now: it is the sure way to check your status.';
         emailNotice.hidden = false;
         const smsNotice = $('sms-delivery-message');
         if (smsOptIn.checked) {
