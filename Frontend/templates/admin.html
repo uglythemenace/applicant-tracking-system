@@ -35,6 +35,7 @@
         <p>Manage open roles and move candidates through your hiring pipeline.</p>
         <div class="row" style="margin-top:16px">
           <button type="button" id="refresh-btn" class="btn btn-secondary btn-small">Refresh the lists</button>
+          <button type="button" id="palette-btn" class="btn btn-secondary btn-small palette-open-btn" aria-haspopup="dialog">Quick search <kbd id="palette-shortcut">Ctrl K</kbd></button>
         </div>
       </div>
 
@@ -162,6 +163,15 @@
       </div>
     </div>
   </main>
+
+  <div id="palette-backdrop" class="palette-backdrop" hidden>
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Quick search">
+      <input id="palette-input" class="palette-input" type="text" role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Search people and jobs, or type an action">
+      <ul id="palette-list" class="palette-list" role="listbox" aria-label="Results"></ul>
+      <p class="palette-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
+      <p id="palette-status" class="palette-sr" aria-live="polite"></p>
+    </div>
+  </div>
 
   <div id="candidate-drawer-backdrop" class="drawer-backdrop" hidden>
     <aside id="candidate-drawer" class="candidate-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
@@ -908,7 +918,165 @@
       $('toggle-archived-btn').setAttribute('aria-expanded', String(archivedJobsVisible));
       $('toggle-archived-btn').textContent = (archivedJobsVisible ? 'Hide' : 'Show') + ' archived jobs (' + $('toggle-archived-btn').dataset.count + ')';
     });
-    L2E.startStaff(refreshAll, clearAll);
+    // ---------- Quick search: Ctrl/Cmd+K ----------
+    // Search people and jobs, or run an action, without leaving the keyboard.
+    const palette = (() => {
+      const isMac = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '');
+      $('palette-shortcut').textContent = isMac ? '⌘K' : 'Ctrl K';
+      let isOpen = false, rows = [], active = 0, returnFocus = null;
+
+      const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const goTo = id => () => { const t = $(id); if (t) t.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); };
+      function showCandidates(nextFilter, nextJob) {
+        filter = nextFilter; jobFilter = nextJob;
+        applicantPage = 1; resetPipelinePages();
+        renderJobFilter(); renderFilters(); renderApplicants();
+        goTo('apps-title')();
+      }
+
+      const ACTIONS = [
+        { label: 'Post a new job', words: 'add create new job role opening', run: () => { $('job-title').focus(); } },
+        { label: 'Show everyone', words: 'all candidates people clear filter', run: () => showCandidates('all', 'all') },
+        { label: 'New applications this week', words: 'new recent review', run: () => showCandidates('new', 'all') },
+        { label: 'Interviews this week', words: 'interview schedule', run: () => showCandidates('interviews', 'all') },
+        { label: 'Waiting 5+ days', words: 'stuck slow late overdue needs decision', run: () => showCandidates('stuck', 'all') },
+        { label: 'Waiting for review', words: 'pending applied queue', run: () => showCandidates('pending', 'all') },
+        { label: 'Being reviewed', words: 'screening reviewing', run: () => showCandidates('reviewing', 'all') },
+        { label: 'Show the board view', words: 'kanban pipeline columns', run: () => { setApplicantView('board'); goTo('apps-title')(); } },
+        { label: 'Show the list view', words: 'table rows', run: () => { setApplicantView('list'); goTo('apps-title')(); } },
+        { label: 'Go to Needs action', words: 'overview summary', run: goTo('action-summary') },
+        { label: 'Go to Your jobs', words: 'jobs roles openings', run: goTo('jobs-title') },
+        { label: 'Go to People who applied', words: 'candidates applicants', run: goTo('apps-title') },
+        { label: 'Refresh the lists', words: 'reload update', run: () => refreshAll() },
+        { label: 'Sign out', words: 'log out logout leave', run: () => { const b = document.getElementById('sign-out-btn'); if (b) b.click(); } }
+      ];
+
+      // 0 = best match, 2 = weakest, -1 = does not match every word typed
+      function score(primary, extra, tokens) {
+        const first = String(primary).toLowerCase();
+        const hay = (first + ' ' + extra).toLowerCase();
+        if (!tokens.every(t => hay.includes(t))) return -1;
+        if (first.startsWith(tokens.join(' '))) return 0;
+        return first.split(/\s+/).some(w => w.startsWith(tokens[0])) ? 1 : 2;
+      }
+      // Actions match on the start of a word ("sti" finds "stuck"), so short searches stay quiet.
+      function scoreWords(primary, extra, tokens) {
+        const words = (String(primary) + ' ' + extra).toLowerCase().split(/[^a-z0-9+]+/).filter(Boolean);
+        if (!tokens.every(t => words.some(w => w.startsWith(t)))) return -1;
+        return String(primary).toLowerCase().startsWith(tokens.join(' ')) ? 0 : 1;
+      }
+      const best = list => list.sort((a, b) => a.score - b.score);
+
+      function build(query) {
+        const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const groups = [];
+        const jobName = a => jobsById[a.job_id]?.title || '';
+        if (!tokens.length) {
+          const recent = applicants.slice(0, 5).map(a => candidateRow(a, 0));
+          if (recent.length) groups.push(['Recent people', recent]);
+        } else {
+          const people = best(applicants.map(a => candidateRow(a, score(a.candidate_name || '', [a.email, a.phone_number, jobName(a), L2E.statusInfo(a.status).label, a.tracking_code].join(' '), tokens))).filter(r => r.score >= 0)).slice(0, 8);
+          if (people.length) groups.push(['People', people]);
+          const counts = {};
+          applicants.forEach(a => { counts[a.job_id] = (counts[a.job_id] || 0) + 1; });
+          const jobs = best(Object.values(jobsById).map(j => ({
+            type: 'job', score: score(j.title || '', j.department || '', tokens), label: j.title,
+            sub: (counts[j.id] || 0) + ((counts[j.id] || 0) === 1 ? ' applicant' : ' applicants') + (j.status !== 'approved' || j.is_archived ? ' · closed' : '') + ' · show them',
+            run: () => showCandidates('all', String(j.id))
+          })).filter(r => r.score >= 0)).slice(0, 5);
+          if (jobs.length) groups.push(['Jobs', jobs]);
+        }
+        const actions = best(ACTIONS.map(a => ({ type: 'action', score: tokens.length ? scoreWords(a.label, a.words, tokens) : 1, label: a.label, sub: '', run: a.run })).filter(r => r.score >= 0));
+        if (actions.length) groups.push([tokens.length ? 'Actions' : 'Quick actions', actions]);
+        return groups;
+      }
+
+      function candidateRow(a, s) {
+        const job = jobsById[a.job_id];
+        return { type: 'person', score: s, label: a.candidate_name || a.email, sub: [a.email, job ? job.title : '', L2E.statusInfo(a.status).label].filter(Boolean).join(' · '), run: () => openCandidateDrawer(a) };
+      }
+
+      function draw() {
+        const list = $('palette-list');
+        const groups = build($('palette-input').value.trim());
+        rows = [];
+        const nodes = [];
+        groups.forEach(([title, items]) => {
+          nodes.push(L2E.el('li', { class: 'palette-group', role: 'presentation', text: title }));
+          items.forEach(item => {
+            const index = rows.length;
+            const li = L2E.el('li', { class: 'palette-item palette-' + item.type, role: 'option', id: 'palette-opt-' + index, 'aria-selected': 'false' },
+              L2E.el('span', { class: 'palette-label', text: item.label }),
+              item.sub ? L2E.el('span', { class: 'palette-sub', text: item.sub }) : null);
+            li.addEventListener('mousemove', () => { if (active !== index) setActive(index, false); });
+            li.addEventListener('click', () => choose(index));
+            rows.push({ item, li });
+            nodes.push(li);
+          });
+        });
+        if (!rows.length) nodes.push(L2E.el('li', { class: 'palette-empty', role: 'presentation', text: 'Nothing matches “' + $('palette-input').value.trim() + '”. Try a name, an email or a job title.' }));
+        list.replaceChildren(...nodes);
+        active = 0;
+        setActive(0, true);
+        $('palette-status').textContent = rows.length ? rows.length + (rows.length === 1 ? ' result' : ' results') : 'No results';
+      }
+
+      function setActive(index, scroll) {
+        if (!rows.length) { $('palette-input').removeAttribute('aria-activedescendant'); return; }
+        active = (index + rows.length) % rows.length;
+        rows.forEach(({ li }, i) => { const on = i === active; li.classList.toggle('is-active', on); li.setAttribute('aria-selected', String(on)); });
+        $('palette-input').setAttribute('aria-activedescendant', rows[active].li.id);
+        if (scroll !== false) rows[active].li.scrollIntoView({ block: 'nearest' });
+      }
+
+      function choose(index) {
+        const row = rows[index];
+        if (!row) return;
+        close(true);
+        row.item.run();
+      }
+
+      function openPalette() {
+        if (isOpen) return;
+        isOpen = true;
+        returnFocus = document.activeElement;
+        $('palette-backdrop').hidden = false;
+        $('palette-input').value = '';
+        draw();
+        $('palette-input').focus();
+      }
+
+      function close(skipFocus) {
+        if (!isOpen) return;
+        isOpen = false;
+        $('palette-backdrop').hidden = true;
+        if (!skipFocus && returnFocus && returnFocus.focus && document.contains(returnFocus)) returnFocus.focus();
+        returnFocus = null;
+      }
+
+      $('palette-input').addEventListener('input', draw);
+      $('palette-input').addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown') { event.preventDefault(); setActive(active + 1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); setActive(active - 1); }
+        else if (event.key === 'Home') { event.preventDefault(); setActive(0); }
+        else if (event.key === 'End') { event.preventDefault(); setActive(rows.length - 1); }
+        else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
+        else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+        else if (event.key === 'Tab') { event.preventDefault(); setActive(active + (event.shiftKey ? -1 : 1)); }
+      });
+      $('palette-backdrop').addEventListener('mousedown', event => { if (event.target === $('palette-backdrop')) close(); });
+      $('palette-btn').addEventListener('click', openPalette);
+      document.addEventListener('keydown', event => {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k') return;
+        const login = document.getElementById('login-overlay');
+        if (login && !login.hidden) return;            // not signed in: leave the browser's own shortcut alone
+        event.preventDefault();
+        isOpen ? close() : openPalette();
+      });
+      return { close };
+    })();
+
+    L2E.startStaff(refreshAll, (...args) => { palette.close(true); clearAll(...args); });
     setApplicantView('board');
   </script>
 </body>
