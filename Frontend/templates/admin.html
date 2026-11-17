@@ -127,6 +127,7 @@
         <div class="chips" id="filters" role="group" aria-label="Show applications that are"></div>
         <div class="filters admin-app-filters">
           <div class="field"><label for="applicant-search">Find an applicant</label><input id="applicant-search" type="search" placeholder="Search name, email, phone or job"></div>
+          <div class="field"><label for="applicant-job">Show one job</label><select id="applicant-job"><option value="all">All jobs</option></select></div>
           <div class="field"><label for="applicant-sort">Order applicants</label><select id="applicant-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></div>
         </div>
         <div class="view-toolbar"><span id="candidate-total" class="muted"></span><div class="view-switch" role="group" aria-label="Candidate display"><button type="button" id="board-view-btn" aria-pressed="true">Board</button><button type="button" id="list-view-btn" aria-pressed="false">List</button></div></div>
@@ -176,6 +177,7 @@
     let jobsById = {};
     let applicants = [];
     let filter = 'all';
+    let jobFilter = 'all'; // 'all' or a job id as text
     let archivedJobsVisible = false;
     let editingJobId = null;
 
@@ -191,6 +193,7 @@
         if (!L2E.keyIsCurrent(key)) return;
         const jobs = Array.isArray(data) ? data : (data.jobs || []);
         jobsById = Object.fromEntries(jobs.map(j => [j.id, j]));
+        renderJobFilter();
         const activeJobs = jobs.filter(job => !job.is_archived);
         const archivedJobs = jobs.filter(job => job.is_archived);
         list.replaceChildren();
@@ -425,6 +428,29 @@
       });
     }
 
+    function inSelectedJob(app) {
+      return jobFilter === 'all' || String(app.job_id) === jobFilter;
+    }
+
+    // Keep the "Show one job" menu in step with the jobs and applicants we have loaded.
+    function renderJobFilter() {
+      const select = $('applicant-job');
+      const counts = {};
+      applicants.forEach(a => { counts[a.job_id] = (counts[a.job_id] || 0) + 1; });
+      const jobs = Object.values(jobsById)
+        .filter(job => !job.is_archived || counts[job.id])
+        .sort((a, b) => String(a.title).localeCompare(String(b.title)));
+      const options = [L2E.el('option', { value: 'all', text: 'All jobs (' + applicants.length + ')' })];
+      jobs.forEach(job => {
+        const closed = job.status !== 'approved' || job.is_archived;
+        options.push(L2E.el('option', { value: String(job.id), text: job.title + ' (' + (counts[job.id] || 0) + ')' + (closed ? ' · closed' : '') }));
+      });
+      // A job that disappeared (for example after sign-out) falls back to all jobs.
+      if (jobFilter !== 'all' && !jobs.some(job => String(job.id) === jobFilter)) jobFilter = 'all';
+      select.replaceChildren(...options);
+      select.value = jobFilter;
+    }
+
     function matchesFilter(app, value) {
       if (value === 'new') return isNewApplication(app);
       if (value === 'interviews') return isInterviewThisWeek(app);
@@ -435,7 +461,7 @@
     function renderFilters() {
       const box = $('filters');
       box.replaceChildren(...FILTERS.map(([value, label]) => {
-        const n = applicants.filter(a => matchesFilter(a, value)).length;
+        const n = applicants.filter(a => inSelectedJob(a) && matchesFilter(a, value)).length;
         const chip = L2E.el('button', { type: 'button', class: 'chip', 'aria-pressed': String(filter === value), text: label + ' (' + n + ')' });
         chip.addEventListener('click', () => { filter = value; applicantPage = 1; resetPipelinePages(); renderFilters(); renderApplicants(); });
         return chip;
@@ -466,7 +492,7 @@
     function visibleApplicants() {
       const query = $('applicant-search').value.trim().toLowerCase();
       const jobTitle = (a) => jobsById[a.job_id]?.title || '';
-      const shown = applicants.filter(a => matchesFilter(a, filter) &&
+      const shown = applicants.filter(a => inSelectedJob(a) && matchesFilter(a, filter) &&
         (!query || [a.candidate_name, a.email, a.phone_number, jobTitle(a)].join(' ').toLowerCase().includes(query)));
       if ($('applicant-sort').value === 'oldest') shown.sort((a, b) => a.id - b.id);
       else if ($('applicant-sort').value === 'name') shown.sort((a, b) => a.candidate_name.localeCompare(b.candidate_name));
@@ -799,6 +825,7 @@
         const data = await res.json();
         if (!L2E.keyIsCurrent(key)) return;
         applicants = data.slice().sort((a, b) => b.id - a.id); // newest first
+        renderJobFilter();
         renderFilters();
         renderApplicants();
       } catch (error) {
@@ -825,7 +852,8 @@
     function refreshAll() { loadJobs(); loadApplicants(); }
 
     function clearAll() {
-      applicants = []; jobsById = {}; filter = 'all'; archivedJobsVisible = false;
+      applicants = []; jobsById = {}; filter = 'all'; jobFilter = 'all'; archivedJobsVisible = false;
+      renderJobFilter();
       applicantPage = 1;
       resetPipelinePages();
       $('pipeline-board').replaceChildren();
@@ -846,6 +874,7 @@
     $('job-form').addEventListener('submit', postJob);
     $('job-cancel-edit').addEventListener('click', resetJobForm);
     $('applicant-search').addEventListener('input', () => { applicantPage = 1; resetPipelinePages(); renderApplicants(); });
+    $('applicant-job').addEventListener('change', () => { jobFilter = $('applicant-job').value; applicantPage = 1; resetPipelinePages(); renderFilters(); renderApplicants(); });
     $('applicant-sort').addEventListener('change', () => { applicantPage = 1; resetPipelinePages(); renderApplicants(); });
     $('applicant-prev-page').addEventListener('click', () => { applicantPage = Math.max(1, applicantPage - 1); renderApplicants(); });
     $('applicant-next-page').addEventListener('click', () => { applicantPage += 1; renderApplicants(); });
@@ -853,6 +882,8 @@
     $('list-view-btn').addEventListener('click', () => setApplicantView('list'));
     document.querySelectorAll('[data-action-filter]').forEach(link => link.addEventListener('click', () => {
       filter = link.dataset.actionFilter;
+      jobFilter = 'all';
+      renderJobFilter();
       applicantPage = 1;
       resetPipelinePages();
       renderFilters();
