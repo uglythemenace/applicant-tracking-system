@@ -178,7 +178,7 @@ def _process_queued_resume_deletions(limit: int = 100) -> None:
 
 
 @router.post("/", response_model=ApplicationResponse)
-async def create_application(request: Request):
+async def create_application(request: Request, background_tasks: BackgroundTasks):
     """Accept applications only for jobs that are currently open."""
     resume_upload = None
     try:
@@ -304,19 +304,22 @@ async def create_application(request: Request):
         except Exception:
             logger.exception("Could not create initial application status history")
         job_title = get_job_title(saved.get("job_id"))
-        email_sent = send_application_received(
+        # Send after the response so a slow or failing mail server never makes the
+        # applicant wait. The result is unknown here, so the page tells them to keep the code.
+        background_tasks.add_task(
+            send_application_received,
             saved["email"],
             saved.get("candidate_name") or "",
             job_title,
             saved["tracking_code"],
         )
-        saved["tracking_email_sent"] = email_sent
-        sms_queued = None
+        saved["tracking_email_sent"] = None
+        saved["tracking_sms_queued"] = None
         if saved.get("sms_updates_consent") and saved.get("phone_number"):
-            sms_queued = send_application_received_sms(
-                saved["phone_number"], job_title, saved["tracking_code"]
+            background_tasks.add_task(
+                send_application_received_sms,
+                saved["phone_number"], job_title, saved["tracking_code"],
             )
-        saved["tracking_sms_queued"] = sms_queued
         return saved
     except HTTPException:
         raise
