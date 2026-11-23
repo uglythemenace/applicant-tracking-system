@@ -7,6 +7,14 @@
    - Staff sign-in, confirmation boxes and pop-up messages are shared.
    ========================================================================== */
 
+// Dark mode: a saved choice wins; otherwise follow the device. Runs first to avoid a flash.
+(function () {
+  let t = null;
+  try { t = localStorage.getItem("theme"); } catch (e) { t = null; }
+  if (t !== "dark" && t !== "light") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();
+
 const API_BASE = "https://applicant-tracking-system-tbaw.onrender.com";
 
 const L2E = (() => {
@@ -99,6 +107,7 @@ const L2E = (() => {
              <a class="brand" href="/admin"><span class="brand-mark">${BRAND_ICON}</span>${BRAND_WORDMARK}<span class="badge-staff">Staff</span></a>
              <nav class="nav" aria-label="Main">
                <a href="/">Public site</a>
+               <button type="button" class="theme-btn" data-theme-toggle></button>
                <button type="button" id="sign-out-btn">Sign out</button>
              </nav>
            </div>`
@@ -107,6 +116,7 @@ const L2E = (() => {
              <nav class="nav" aria-label="Main">
                <a href="/jobs"${current("jobs")}>Jobs</a>
                <a href="/track"${current("track")}>Check my application</a>
+               <button type="button" class="theme-btn" data-theme-toggle></button>
              </nav>
            </div>`;
     }
@@ -122,6 +132,22 @@ const L2E = (() => {
             <a href="/contact">Contact</a>
           </nav>
         </div>`;
+    }
+
+    const themeBtn = document.querySelector("[data-theme-toggle]");
+    if (themeBtn) {
+      const paint = () => {
+        const dark = document.documentElement.dataset.theme === "dark";
+        themeBtn.textContent = dark ? "Light mode" : "Dark mode";
+        themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      };
+      themeBtn.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem("theme", next); } catch (e) { /* storage blocked */ }
+        paint();
+      });
+      paint();
     }
 
     document.body.append(el("div", { class: "toasts", id: "toasts", role: "status", "aria-live": "polite" }));
