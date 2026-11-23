@@ -1122,3 +1122,7 @@ kbd { font: 600 .72rem/1 var(--sans); padding: 3px 6px; border: 1px solid var(--
 [data-theme="dark"] .pill-muted { background: var(--mist); color: var(--ink-soft); }
 [data-theme="dark"] .action-brief a, [data-theme="dark"] .action-card { background: var(--mist); border-color: var(--line); }
 .data th.select-col, .data td.select-col { width: 1%; padding-right: 0; }
+
+.empty-state{padding:28px 20px;text-align:center;border:2px dashed var(--line);border-radius:var(--radius-lg);background:var(--surface)}
+.empty-state h3{margin:0 0 6px}
+.empty-state p{margin:0 0 16px}

@@ -64,6 +64,7 @@
       </section>
 
       <section id="analytics" aria-label="Application totals" class="tiles">
+        <div class="tile"><p class="tile-num" id="open-jobs-count">0</p><p class="tile-label">Open jobs</p></div>
         <div class="tile"><p class="tile-num" id="total-count">0</p><p class="tile-label">People applied</p></div>
         <div class="tile"><p class="tile-num" id="pending-count">0</p><p class="tile-label">Waiting for review</p></div>
         <div class="tile"><p class="tile-num" id="accepted-count">0</p><p class="tile-label">Accepted</p></div>
@@ -131,6 +132,11 @@
           <div class="field"><label for="applicant-job">Show one job</label><select id="applicant-job"><option value="all">All jobs</option></select></div>
           <div class="field"><label for="applicant-sort">Order applicants</label><select id="applicant-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></div>
         </div>
+        <div id="empty-applicants" class="empty-state" hidden>
+          <h3>No one has applied yet</h3>
+          <p class="muted">Share your jobs page and new applications will show up here.</p>
+          <button type="button" class="btn btn-primary" id="copy-jobs-link">Copy link to your jobs page</button>
+        </div>
         <div class="view-toolbar"><span id="candidate-total" class="muted"></span><div class="view-switch" role="group" aria-label="Candidate display"><button type="button" id="board-view-btn" aria-pressed="true">Board</button><button type="button" id="list-view-btn" aria-pressed="false">List</button></div></div>
         <div id="pipeline-board" class="pipeline-board" aria-label="Hiring pipeline"></div>
         <div id="bulk-bar" class="bulk-bar" hidden role="group" aria-label="Actions for selected people"><span id="bulk-count" aria-live="polite"></span><button type="button" class="btn btn-small btn-plain" data-bulk="reviewing">Start review</button><button type="button" class="btn btn-small btn-secondary" data-bulk="interview">Interview</button><button type="button" class="btn btn-small btn-danger" data-bulk="rejected">Reject</button><button type="button" class="btn btn-small btn-plain" id="bulk-clear">Clear</button></div>
@@ -194,6 +200,13 @@
     let editingJobId = null;
 
     // ----- Jobs -----
+    async function copyLink(path, message) {
+      const url = location.origin + path;
+      try { await navigator.clipboard.writeText(url); L2E.toast(message); }
+      catch (e) { window.prompt('Copy this link:', url); }
+    }
+    $('copy-jobs-link').addEventListener('click', () => copyLink('/jobs', 'Link to your jobs page copied.'));
+
     async function loadJobs() {
       const list = $('jobs-list');
       const key = L2E.currentKey();
@@ -209,8 +222,14 @@
         const activeJobs = jobs.filter(job => !job.is_archived);
         const archivedJobs = jobs.filter(job => job.is_archived);
         list.replaceChildren();
+        $('open-jobs-count').textContent = activeJobs.filter(j => j.status === 'approved').length;
         if (activeJobs.length === 0) {
-          list.append(L2E.el('p', { class: 'muted', text: jobs.length ? 'No jobs in this list. Restore an archived job or post a new one.' : 'No jobs yet. Use the form to post your first job.' }));
+          const post = L2E.el('button', { type: 'button', class: 'btn btn-primary', text: 'Post a job' });
+          post.addEventListener('click', () => { const t = $('job-title'); t.scrollIntoView({ block: 'center' }); t.focus(); });
+          list.append(L2E.el('div', { class: 'empty-state' },
+            L2E.el('h3', { text: jobs.length ? 'No jobs in this list' : 'Post your first job' }),
+            L2E.el('p', { class: 'muted', text: jobs.length ? 'Restore an archived job or post a new one.' : 'It takes about a minute. It shows on the public jobs page right away.' }),
+            post));
         }
         activeJobs.forEach(job => {
           const open = job.status === 'approved';
@@ -224,6 +243,11 @@
           const edit = L2E.el('button', { type: 'button', class: 'btn btn-small btn-secondary', 'aria-label': 'Edit ' + job.title, text: 'Edit details' });
           edit.addEventListener('click', () => editJob(job));
           const actions = [edit, btn];
+          if (open) {
+            const copy = L2E.el('button', { type: 'button', class: 'btn btn-small btn-secondary', 'aria-label': 'Copy the link to ' + job.title, text: 'Copy job link' });
+            copy.addEventListener('click', () => copyLink('/job?id=' + encodeURIComponent(job.id), 'Job link copied.'));
+            actions.unshift(copy);
+          }
           if (!open) {
             const archive = L2E.el('button', {
               type: 'button',
@@ -714,6 +738,7 @@
       const tbody = $('applicant-table-body');
       const total = applicants.length;
       $('total-count').textContent = total;
+      $('empty-applicants').hidden = total !== 0;
       $('pending-count').textContent = applicants.filter(a => a.status === 'pending').length;
       $('accepted-count').textContent = applicants.filter(a => a.status === 'accepted').length;
       const shown = visibleApplicants();
@@ -915,7 +940,7 @@
     function refreshAll() { loadJobs(); loadApplicants(); }
 
     function clearAll() {
-      applicants = []; selectedIds.clear(); jobsById = {}; filter = 'all'; jobFilter = 'all'; archivedJobsVisible = false;
+      applicants = []; selectedIds.clear(); $('empty-applicants').hidden = true; jobsById = {}; filter = 'all'; jobFilter = 'all'; archivedJobsVisible = false;
       renderJobFilter();
       applicantPage = 1;
       resetPipelinePages();
@@ -931,7 +956,7 @@
       $('toggle-archived-btn').setAttribute('aria-expanded', 'false');
       $('filters').replaceChildren();
       $('applicant-table-body').replaceChildren();
-      for (const id of ['total-count', 'pending-count', 'accepted-count', 'new-applications-count', 'weekly-interviews-count']) $(id).textContent = '0';
+      for (const id of ['open-jobs-count', 'total-count', 'pending-count', 'accepted-count', 'new-applications-count', 'weekly-interviews-count']) $(id).textContent = '0';
     }
 
     $('job-form').addEventListener('submit', postJob);
