@@ -622,6 +622,25 @@
       drawerReturnFocus = null;
     }
 
+    // A plain "at a glance" summary built from the saved details. It is not AI: it only restates facts.
+    function glanceLines(app, job) {
+      const lines = [];
+      const applied = Date.parse(app.created_at || '');
+      if (Number.isFinite(applied)) {
+        const d = Math.max(0, Math.floor((Date.now() - applied) / 86400000));
+        lines.push({ tone: '', text: 'Applied ' + (d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago') + ' for ' + (job?.title || 'job #' + app.job_id) + '.' });
+      }
+      const days = daysInStage(app);
+      if (days !== null && days >= STUCK_DAYS) lines.push({ tone: 'warn', text: 'Waiting ' + days + ' days in this stage. They need a decision.' });
+      lines.push({ tone: app.resume_path || app.resume_url ? 'good' : 'warn', text: app.resume_path ? 'Résumé uploaded.' : app.resume_url ? 'Résumé link given.' : 'No résumé given.' });
+      lines.push({ tone: '', text: (app.reviewer_notes || '').trim() ? 'Your team has left private notes.' : 'No private notes yet.' });
+      if (app.interview_at) lines.push({ tone: 'good', text: 'Interview set for ' + new Date(app.interview_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) + '.' });
+      const next = { pending: 'Next: read the application and start a review.', reviewing: 'Next: decide whether to invite them to interview.',
+        interview: app.interview_at ? 'Next: hold the interview, then accept or decline.' : 'Next: add an interview time and place.' }[app.status];
+      lines.push({ tone: 'info', text: next || 'This application is finished.' });
+      return lines;
+    }
+
     function openCandidateDrawer(app) {
       drawerReturnFocus = document.activeElement;
       const job = jobsById[app.job_id];
@@ -657,6 +676,9 @@
             L2E.el('h2', { id: 'drawer-title', text: app.candidate_name }),
             L2E.el('p', { class: 'muted', text: job?.title || 'Job #' + app.job_id }),
             L2E.el('span', { class: 'pill pill-' + info.tone, text: info.label }))),
+        L2E.el('section', { class: 'drawer-section glance', 'aria-label': 'At a glance' },
+          L2E.el('h3', { text: 'At a glance' }),
+          L2E.el('ul', { class: 'glance-list' }, glanceLines(app, job).map(l => L2E.el('li', { class: l.tone ? 'glance-' + l.tone : null, text: l.text })))),
         L2E.el('section', { class: 'drawer-section' },
           L2E.el('h3', { text: 'Contact' }),
           L2E.el('p', {}, L2E.el('a', { href: 'mailto:' + app.email, text: app.email })),

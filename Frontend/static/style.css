@@ -1126,3 +1126,9 @@ kbd { font: 600 .72rem/1 var(--sans); padding: 3px 6px; border: 1px solid var(--
 .empty-state{padding:28px 20px;text-align:center;border:2px dashed var(--line);border-radius:var(--radius-lg);background:var(--surface)}
 .empty-state h3{margin:0 0 6px}
 .empty-state p{margin:0 0 16px}
+
+.glance-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.glance-list li{padding:8px 12px;border-radius:10px;background:var(--mist);border-left:4px solid var(--line)}
+.glance-list .glance-good{border-left-color:var(--good)}
+.glance-list .glance-warn{border-left-color:var(--warn);background:var(--warn-tint)}
+.glance-list .glance-info{border-left-color:var(--brand);background:var(--brand-tint)}
