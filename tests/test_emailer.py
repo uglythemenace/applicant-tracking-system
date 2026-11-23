@@ -121,3 +121,50 @@ def test_scheduled_and_updated_emails_read_differently(monkeypatch):
     assert s2 == "Your interview time has changed: Dev & Ops"
     assert "Wednesday, 18 November 2026 at 14:30 (America/Los_Angeles)" in b1 and "Room 4" in b1
     assert "Dev &amp; Ops" in b2 and "new details" in b2
+
+
+def test_gmail_api_gets_a_token_then_sends_a_base64_message(monkeypatch):
+    import base64, json
+    calls = []
+
+    def fake_http(url, data, headers):
+        calls.append((url, data, headers))
+        return {"access_token": "tok", "expires_in": 3600} if "oauth2" in url else {"id": "1"}
+
+    for name, value in dict(GMAIL_CLIENT_ID="id", GMAIL_CLIENT_SECRET="sec", GMAIL_REFRESH_TOKEN="ref", GMAIL_SENDER="hr@gmail.com").items():
+        monkeypatch.setattr(emailer, name, value)
+    monkeypatch.setattr(emailer, "_http_json", fake_http)
+    monkeypatch.setitem(emailer._gmail_token, "value", None)
+    assert emailer._send_gmail_api("a@example.com", "Hello", "<p>Hi</p>") is True
+    assert "oauth2.googleapis.com" in calls[0][0] and b"refresh_token=ref" in calls[0][1]
+    assert calls[1][2]["Authorization"] == "Bearer tok"
+    raw = base64.urlsafe_b64decode(json.loads(calls[1][1])["raw"]).decode()
+    assert "To: a@example.com" in raw and "Subject: Hello" in raw and "hr@gmail.com" in raw
+    # The token is reused for the next email.
+    emailer._send_gmail_api("b@example.com", "Again", "<p>x</p>")
+    assert sum("oauth2" in c[0] for c in calls) == 1
+
+
+def test_gmail_api_failure_returns_false_and_logs_no_address(monkeypatch, capsys):
+    for name, value in dict(GMAIL_CLIENT_ID="id", GMAIL_CLIENT_SECRET="sec", GMAIL_REFRESH_TOKEN="ref", GMAIL_SENDER="hr@gmail.com").items():
+        monkeypatch.setattr(emailer, name, value)
+    monkeypatch.setitem(emailer._gmail_token, "value", None)
+
+    def boom(url, data, headers):
+        raise OSError("network down")
+
+    monkeypatch.setattr(emailer, "_http_json", boom)
+    assert emailer._send_gmail_api("secret@example.com", "S", "<p>x</p>") is False
+    assert "secret@example.com" not in capsys.readouterr().out
+
+
+def test_gmail_api_without_settings_is_skipped(monkeypatch):
+    monkeypatch.setattr(emailer, "GMAIL_REFRESH_TOKEN", "")
+    assert emailer._send_gmail_api("a@example.com", "S", "<p>x</p>") is False
+
+
+def test_provider_switch_uses_gmail_api(monkeypatch):
+    monkeypatch.setattr(emailer, "EMAIL_PROVIDER", "gmail_api")
+    seen = []
+    monkeypatch.setattr(emailer, "_send_gmail_api", lambda to, subject, body: seen.append(to) or True)
+    assert emailer._send("a@example.com", "S", "<p>x</p>") is True and seen == ["a@example.com"]

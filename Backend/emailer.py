@@ -1,7 +1,13 @@
-import os
+import base64
 import html
+import json
+import os
 import smtplib
 import ssl
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -21,6 +27,12 @@ try:
     SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 except ValueError:
     SMTP_PORT = 587
+# Gmail API over HTTPS: works on hosts that block SMTP ports (such as Render's free plan).
+GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "").strip()
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "").strip()
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "").strip()
+GMAIL_SENDER = os.environ.get("GMAIL_SENDER", "").strip()
+_gmail_token = {"value": None, "expires": 0.0}
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL", "https://applicant-tracking-system-frontend.vercel.app"
 )
@@ -29,12 +41,63 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
 
+def _http_json(url: str, data: bytes, headers: dict) -> dict:
+    """POST and return the JSON reply. Split out so tests can replace it."""
+    request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    with urllib.request.urlopen(request, timeout=15) as reply:
+        return json.loads(reply.read().decode("utf-8") or "{}")
+
+
+def _gmail_access_token() -> str:
+    if _gmail_token["value"] and time.time() < _gmail_token["expires"] - 60:
+        return _gmail_token["value"]
+    form = urllib.parse.urlencode({
+        "client_id": GMAIL_CLIENT_ID, "client_secret": GMAIL_CLIENT_SECRET,
+        "refresh_token": GMAIL_REFRESH_TOKEN, "grant_type": "refresh_token",
+    }).encode()
+    reply = _http_json("https://oauth2.googleapis.com/token", form, {"Content-Type": "application/x-www-form-urlencoded"})
+    _gmail_token["value"] = reply["access_token"]
+    _gmail_token["expires"] = time.time() + float(reply.get("expires_in", 3600))
+    return _gmail_token["value"]
+
+
+def _send_gmail_api(to: str, subject: str, body_html: str) -> bool:
+    if not (GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN and GMAIL_SENDER):
+        print("Email skipped: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN and GMAIL_SENDER are required")
+        return False
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = formataddr((SMTP_FROM_NAME, GMAIL_SENDER))
+    message["To"] = to
+    message.set_content("This message contains your Rolebeam application update. Please view it in an HTML-capable email app.")
+    message.add_alternative(body_html, subtype="html")
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    try:
+        _http_json(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            json.dumps({"raw": raw}).encode(),
+            {"Authorization": "Bearer " + _gmail_access_token(), "Content-Type": "application/json"},
+        )
+        return True
+    except urllib.error.HTTPError as e:
+        _gmail_token["value"] = None
+        # Status code only: never log applicant addresses, tokens or message text.
+        print(f"Gmail API email failed (HTTP {e.code}); check the Gmail settings in Render")
+        return False
+    except Exception as e:
+        _gmail_token["value"] = None
+        print(f"Gmail API email failed ({type(e).__name__}); check the Gmail settings in Render")
+        return False
+
+
 def _send(to: str, subject: str, body_html: str) -> bool:
     # Email problems must never break an application or a status change.
+    if EMAIL_PROVIDER == "gmail_api":
+        return _send_gmail_api(to, subject, body_html)
     if EMAIL_PROVIDER == "smtp":
         return _send_smtp(to, subject, body_html)
     if EMAIL_PROVIDER != "resend":
-        print("Email skipped: EMAIL_PROVIDER must be 'resend' or 'smtp'")
+        print("Email skipped: EMAIL_PROVIDER must be 'resend', 'smtp' or 'gmail_api'")
         return False
     if not resend.api_key:
         print("Email skipped: RESEND_API_KEY is not set")
