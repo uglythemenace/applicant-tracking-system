@@ -133,10 +133,12 @@
         </div>
         <div class="view-toolbar"><span id="candidate-total" class="muted"></span><div class="view-switch" role="group" aria-label="Candidate display"><button type="button" id="board-view-btn" aria-pressed="true">Board</button><button type="button" id="list-view-btn" aria-pressed="false">List</button></div></div>
         <div id="pipeline-board" class="pipeline-board" aria-label="Hiring pipeline"></div>
+        <div id="bulk-bar" class="bulk-bar" hidden role="group" aria-label="Actions for selected people"><span id="bulk-count" aria-live="polite"></span><button type="button" class="btn btn-small btn-plain" data-bulk="reviewing">Start review</button><button type="button" class="btn btn-small btn-secondary" data-bulk="interview">Interview</button><button type="button" class="btn btn-small btn-danger" data-bulk="rejected">Reject</button><button type="button" class="btn btn-small btn-plain" id="bulk-clear">Clear</button></div>
         <div id="applicant-table-wrap" class="table-wrap" hidden>
           <table class="data">
             <thead>
               <tr>
+                <th scope="col" class="select-col"><input type="checkbox" id="select-page" aria-label="Select everyone on this page"></th>
                 <th scope="col">Applicant</th>
                 <th scope="col">Phone</th>
                 <th scope="col">Job</th>
@@ -146,7 +148,7 @@
               </tr>
             </thead>
             <tbody id="applicant-table-body">
-              <tr><td colspan="6" class="empty">Loading applications&hellip;</td></tr>
+              <tr><td colspan="7" class="empty">Loading applications&hellip;</td></tr>
             </tbody>
           </table>
         </div>
@@ -723,12 +725,12 @@
       const pageApplicants = shown.slice(pageStart, pageStart + APPLICANTS_PER_PAGE);
       tbody.replaceChildren();
       if (total === 0) {
-        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No applicants submitted yet.' })));
+        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '7', class: 'empty', text: 'No applicants submitted yet.' })));
         $('applicant-pagination').hidden = true;
         return;
       }
       if (shown.length === 0) {
-        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: 'No one is in this group right now.' })));
+        tbody.append(L2E.el('tr', {}, L2E.el('td', { colspan: '7', class: 'empty', text: 'No one is in this group right now.' })));
         $('applicant-pagination').hidden = true;
         return;
       }
@@ -758,7 +760,11 @@
             L2E.el('label', {}, 'Location or video details', interviewLocation),
             L2E.el('label', {}, 'Rescheduling link for applicant', reschedule),
             saveDetails, activity, activityList));
+        const pick = L2E.el('input', { type: 'checkbox', 'aria-label': 'Select ' + app.candidate_name });
+        pick.checked = selectedIds.has(app.id);
+        pick.addEventListener('change', () => { if (pick.checked) selectedIds.add(app.id); else selectedIds.delete(app.id); updateBulkBar(); });
         tbody.append(L2E.el('tr', {},
+          L2E.el('td', { class: 'select-col', 'data-label': 'Select' }, pick),
           L2E.el('td', { 'data-label': 'Applicant' },
             L2E.el('span', { class: 'who' }, candidateName, L2E.el('span', { class: 'sub', text: app.email }), app.created_at ? L2E.el('span', { class: 'sub', text: 'Applied ' + L2E.formatDate(app.created_at) }) : null)),
           L2E.el('td', { 'data-label': 'Phone' },
@@ -776,10 +782,57 @@
       });
       $('applicant-pagination').hidden = $('board-view-btn').getAttribute('aria-pressed') === 'true' || shown.length <= APPLICANTS_PER_PAGE;
       $('applicant-page-summary').textContent = 'Showing ' + (pageStart + 1) + '–' + Math.min(pageStart + APPLICANTS_PER_PAGE, shown.length) + ' of ' + shown.length + ' candidates';
+      updateBulkBar();
       $('applicant-page-number').textContent = 'Page ' + applicantPage + ' of ' + pageCount;
       $('applicant-prev-page').disabled = applicantPage <= 1;
       $('applicant-next-page').disabled = applicantPage >= pageCount;
     }
+
+    const selectedIds = new Set();
+    function pageIds() {
+      const start = (applicantPage - 1) * APPLICANTS_PER_PAGE;
+      return visibleApplicants().slice(start, start + APPLICANTS_PER_PAGE).map(a => a.id);
+    }
+    function updateBulkBar() {
+      const known = new Set(applicants.map(a => a.id));
+      [...selectedIds].forEach(id => { if (!known.has(id)) selectedIds.delete(id); });
+      const n = selectedIds.size;
+      $('bulk-bar').hidden = n === 0;
+      $('bulk-count').textContent = n + (n === 1 ? ' person selected' : ' people selected');
+      const ids = pageIds();
+      const all = $('select-page');
+      all.checked = ids.length > 0 && ids.every(id => selectedIds.has(id));
+      all.indeterminate = !all.checked && ids.some(id => selectedIds.has(id));
+    }
+    $('select-page').addEventListener('change', e => {
+      pageIds().forEach(id => { if (e.target.checked) selectedIds.add(id); else selectedIds.delete(id); });
+      renderApplicants();
+    });
+    $('bulk-clear').addEventListener('click', () => { selectedIds.clear(); renderApplicants(); });
+    document.querySelectorAll('[data-bulk]').forEach(btn => btn.addEventListener('click', async () => {
+      const status = btn.dataset.bulk;
+      const people = applicants.filter(a => selectedIds.has(a.id));
+      if (!people.length) return;
+      const label = L2E.statusInfo(status).label;
+      const ok = await L2E.confirmBox({
+        title: 'Move ' + people.length + (people.length === 1 ? ' person' : ' people') + '?',
+        message: 'They will all be moved to "' + label + '". Applicants will see the new status when they check their application.',
+        confirmLabel: 'Yes, move them', danger: status === 'rejected'
+      });
+      if (!ok) return;
+      const buttons = document.querySelectorAll('[data-bulk]'); buttons.forEach(b => { b.disabled = true; });
+      let done = 0, failed = 0;
+      for (const app of people) {
+        try {
+          const res = await L2E.adminFetch('/applications/' + app.id, { method: 'PATCH', body: { status } });
+          if (!res.ok) throw new Error('bad status');
+          done++; selectedIds.delete(app.id);
+        } catch (err) { failed++; }
+      }
+      buttons.forEach(b => { b.disabled = false; });
+      L2E.toast(done + (done === 1 ? ' person is' : ' people are') + ' now: ' + label + '.' + (failed ? ' ' + failed + ' could not be changed; they are still selected.' : ''), failed ? 'bad' : 'good');
+      loadApplicants();
+    }));
 
     async function saveApplicantDetails(app, details) {
       try {
@@ -829,7 +882,7 @@
     async function loadApplicants() {
       const key = L2E.currentKey();
       try {
-        const res = await L2E.adminFetch('/applications/', { onSlow: () => { $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: L2E.WAKE_NOTE }))); } });
+        const res = await L2E.adminFetch('/applications/', { onSlow: () => { $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '7', class: 'empty', text: L2E.WAKE_NOTE }))); } });
         if (res.status === 401 || !L2E.keyIsCurrent(key)) return;
         if (!res.ok) throw new Error('Failed to load applicants');
         const data = await res.json();
@@ -842,7 +895,7 @@
         console.error('Error fetching applicants:', error);
         if (!L2E.keyIsCurrent(key)) return;
         for (const id of ['total-count', 'pending-count', 'accepted-count', 'new-applications-count', 'weekly-interviews-count']) $(id).textContent = '—';
-        $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '6', class: 'empty', text: "Couldn't load applications. Press \"Refresh the lists\" in a moment." })));
+        $('applicant-table-body').replaceChildren(L2E.el('tr', {}, L2E.el('td', { colspan: '7', class: 'empty', text: "Couldn't load applications. Press \"Refresh the lists\" in a moment." })));
       }
     }
 
@@ -862,7 +915,7 @@
     function refreshAll() { loadJobs(); loadApplicants(); }
 
     function clearAll() {
-      applicants = []; jobsById = {}; filter = 'all'; jobFilter = 'all'; archivedJobsVisible = false;
+      applicants = []; selectedIds.clear(); jobsById = {}; filter = 'all'; jobFilter = 'all'; archivedJobsVisible = false;
       renderJobFilter();
       applicantPage = 1;
       resetPipelinePages();
