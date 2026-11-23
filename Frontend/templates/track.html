@@ -53,7 +53,57 @@
       result.replaceChildren(L2E.el('div', { class: 'alert alert-' + tone }, L2E.el('strong', { text: title }), text ? L2E.el('p', { text }) : null, extra));
     }
 
+    // Candidates in the interview stage can pick one of the times the team offered.
+    function interviewPicker(credentials, data) {
+      const box = L2E.el('section', { class: 'panel interview-picker', 'aria-live': 'polite' });
+      const fmt = (slot) => new Date(slot.starts_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short', timeZone: slot.timezone || undefined }) + (slot.timezone ? ' (' + slot.timezone + ')' : '');
+      async function load() {
+        box.replaceChildren(L2E.el('p', { class: 'muted', text: 'Loading interview times…' }));
+        try {
+          const res = await L2E.request('/interview-slots/available', { method: 'POST', body: credentials });
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(out.detail || 'Could not load interview times.');
+          if (!out.can_pick) { box.hidden = true; return; }
+          box.hidden = false;
+          const kids = [L2E.el('h2', { text: data.interview_at ? 'Need a different time?' : 'Pick your interview time' })];
+          if (!out.slots.length) {
+            kids.push(L2E.el('p', { text: data.interview_at ? 'No other times are open right now. Check back later.' : 'The team has not added times yet. Check this page again soon.' }));
+          } else {
+            kids.push(L2E.el('p', { class: 'muted', text: 'Times are shown in your local time unless a time zone is listed.' }));
+            const list = L2E.el('ul', { class: 'slot-list' });
+            out.slots.forEach(slot => {
+              const btn = L2E.el('button', { type: 'button', class: 'btn btn-secondary', text: 'Choose this time' });
+              btn.addEventListener('click', () => choose(slot, btn));
+              list.append(L2E.el('li', {}, L2E.el('div', {}, L2E.el('strong', { text: fmt(slot) }), slot.location ? L2E.el('div', { class: 'muted', text: slot.location }) : null), btn));
+            });
+            kids.push(list);
+          }
+          box.replaceChildren(...kids);
+        } catch (err) { box.replaceChildren(L2E.el('p', { class: 'alert alert-bad', role: 'alert', text: err.message || 'Could not load interview times.' })); }
+      }
+      async function choose(slot, btn) {
+        btn.disabled = true;
+        try {
+          const res = await L2E.request('/interview-slots/book', { method: 'POST', body: { ...credentials, slot_id: slot.id } });
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(out.detail || 'Could not save your choice.');
+          L2E.toast('Your interview is booked.');
+          await checkAgain();
+        } catch (err) { L2E.toast(err.message || 'Could not save your choice.', 'bad'); load(); }
+      }
+      load();
+      return box;
+    }
+
+    async function checkAgain() {
+      const last = window.__lastCredentials;
+      if (!last) return;
+      const response = await L2E.request('/applications/track', { method: 'POST', body: last });
+      if (response.ok) renderResult(await response.json(), last);
+    }
+
     function renderResult(data, credentials) {
+      window.__lastCredentials = credentials;
       const raw = String(data.status || '').trim().toLowerCase();
       const accepted = ['accepted', 'hired', 'approved', 'offer', 'offered'].includes(raw);
       const rejected = ['rejected', 'declined', 'not selected', 'unsuccessful'].includes(raw);
@@ -155,7 +205,8 @@
         actions.append(withdrawButton);
       }
       actions.append(another);
-      dashboard.replaceChildren(statusCard, details, responseNote, timeline, interview, nextStep, actions);
+      const picker = raw === 'interview' || raw === 'interviewing' ? interviewPicker(credentials, data) : null;
+      dashboard.replaceChildren(...[statusCard, details, responseNote, timeline, interview, picker, nextStep, actions].filter(Boolean));
       document.getElementById('lookup-card').hidden = true;
       dashboard.hidden = false;
       dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -1132,3 +1132,7 @@ kbd { font: 600 .72rem/1 var(--sans); padding: 3px 6px; border: 1px solid var(--
 .glance-list .glance-good{border-left-color:var(--good)}
 .glance-list .glance-warn{border-left-color:var(--warn);background:var(--warn-tint)}
 .glance-list .glance-info{border-left-color:var(--brand);background:var(--brand-tint)}
+
+.slot-list{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px}
+.slot-list li{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.slot-list li .pill{margin-top:4px}

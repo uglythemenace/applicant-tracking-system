@@ -641,6 +641,54 @@
       return lines;
     }
 
+    // Interview times offered for one job. Candidates in the interview stage pick one on their tracking page.
+    function slotsSection(app) {
+      const box = L2E.el('section', { class: 'drawer-section', 'aria-label': 'Interview times' });
+      const fmt = (slot) => new Date(slot.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short', timeZone: slot.timezone || undefined }) + (slot.timezone ? ' (' + slot.timezone + ')' : '');
+      async function load() {
+        const key = L2E.currentKey();
+        let slots = [];
+        try {
+          const res = await L2E.adminFetch('/interview-slots/?job_id=' + encodeURIComponent(app.job_id));
+          if (!L2E.keyIsCurrent(key)) return;
+          if (!res.ok) throw new Error('load');
+          slots = await res.json();
+        } catch (err) { box.replaceChildren(L2E.el('h3', { text: 'Interview times' }), L2E.el('p', { class: 'muted', text: 'Could not load interview times.' })); return; }
+        const upcoming = slots.filter(sl => Date.parse(sl.starts_at) > Date.now());
+        const when = L2E.el('input', { type: 'datetime-local', 'aria-label': 'New interview time (your local time)' });
+        const where = L2E.el('input', { maxlength: '500', 'aria-label': 'Place or video link for this time', placeholder: 'Place or video link' });
+        const add = L2E.el('button', { type: 'button', class: 'btn btn-secondary btn-small', text: 'Offer this time' });
+        add.addEventListener('click', async () => {
+          if (!when.value) { L2E.toast('Pick a date and time first.', 'bad'); return; }
+          add.disabled = true;
+          try {
+            const res = await L2E.adminFetch('/interview-slots/', { method: 'POST', body: { job_id: app.job_id, starts_at: new Date(when.value).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null, location: where.value.trim() || null } });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(typeof d.detail === 'string' ? d.detail : 'Could not add the time.'); }
+            L2E.toast('Time added.'); load();
+          } catch (err) { L2E.toast(err.message || 'Could not add the time.', 'bad'); add.disabled = false; }
+        });
+        const list = L2E.el('ul', { class: 'slot-list' }, upcoming.map(sl => {
+          const del = L2E.el('button', { type: 'button', class: 'btn btn-plain btn-small', text: 'Remove', 'aria-label': 'Remove ' + fmt(sl) });
+          del.addEventListener('click', async () => {
+            const ok = sl.application_id ? await L2E.confirmBox({ title: 'Remove a booked time?', message: 'Someone has picked this time. Removing it clears their interview time, and they can pick again.', confirmLabel: 'Remove it', danger: true }) : true;
+            if (!ok) return;
+            const res = await L2E.adminFetch('/interview-slots/' + sl.id, { method: 'DELETE' });
+            if (res.ok) { L2E.toast('Time removed.'); loadApplicants(); load(); } else L2E.toast('Could not remove the time.', 'bad');
+          });
+          const mine = sl.application_id === app.id;
+          return L2E.el('li', {}, L2E.el('div', {}, L2E.el('strong', { text: fmt(sl) }), sl.location ? L2E.el('div', { class: 'muted', text: sl.location }) : null,
+            sl.application_id ? L2E.el('span', { class: 'pill pill-' + (mine ? 'good' : 'info'), text: mine ? 'Picked by this person' : 'Booked' }) : L2E.el('span', { class: 'pill pill-muted', text: 'Open' })), del);
+        }));
+        box.replaceChildren(
+          L2E.el('h3', { text: 'Interview times for this job' }),
+          L2E.el('p', { class: 'muted', text: 'People in the interview stage can pick an open time on their tracking page.' }),
+          upcoming.length ? list : L2E.el('p', { class: 'muted', text: 'No upcoming times yet.' }),
+          L2E.el('div', { class: 'stack' }, L2E.el('label', {}, 'Date and time (your local time)', when), L2E.el('label', {}, 'Place or video link', where), add));
+      }
+      load();
+      return box;
+    }
+
     function openCandidateDrawer(app) {
       drawerReturnFocus = document.activeElement;
       const job = jobsById[app.job_id];
@@ -685,6 +733,7 @@
           L2E.el('p', { text: app.phone_number || 'No phone number provided' }),
           L2E.el('p', { class: 'muted', text: app.created_at ? 'Applied ' + L2E.formatDate(app.created_at) : '' })),
         L2E.el('section', { class: 'drawer-section' }, L2E.el('h3', { text: 'Résumé' }), resumeCell(app)),
+        ...(app.status === 'interview' ? [slotsSection(app)] : []),
         L2E.el('div', { class: 'drawer-actions' },
           actionButton(app, 'reviewing', 'Move to screening', 'btn-secondary'),
           actionButton(app, 'interview', 'Move to interview', 'btn-secondary'),
